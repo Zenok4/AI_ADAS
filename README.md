@@ -13,27 +13,27 @@
 
 ## 🧩 Cấu trúc thư mục dự án
 ```
-├── 📄app/
-│   ├── 📄__init__.py
-│   ├── 📄config/
-│   │   ├── 📄__init__.py
-│   │   └── 📂settings.py
-│   ├── 📄main.py
-│   ├── 📄routes/
-│   │   ├── 📄__init__.py
-│   │   └── 📂predict.py
-│   ├── 📄services/
-│   │   ├── 📄__init__.py
-│   │   └── 📂model_loader.py
-│   └── 📂utils/
-│       └── 📂image_helper.py
-├── 📄config.yaml
-├── 📄generate_changelog.py
-├── 📄generate_readme.py
-├── 📄models/
-├── 📄README.md
-├── 📄requirements.txt
-├── 📄run.py
+├── 📂 app/
+│   ├── 📄 __init__.py
+│   ├── 📂 config/
+│   │   ├── 📄 __init__.py
+│   │   └── 📄 settings.py
+│   ├── 📄 main.py
+│   ├── 📂 routes/
+│   │   ├── 📄 __init__.py
+│   │   └── 📄 predict.py
+│   ├── 📂 services/
+│   │   ├── 📄 __init__.py
+│   │   └── 📄 model_loader.py
+│   └── 📂 utils/
+│       └── 📄 image_helper.py
+├── 📄 config.yaml
+├── 📄 generate_changelog.py
+├── 📄 generate_readme.py
+├── 📂 models/
+├── 📄 README.md
+├── 📄 requirements.txt
+├── 📄 run.py
 ```
 
 ---
@@ -50,14 +50,14 @@ python -m venv venv-ai-adas
 ### 2. Kích hoạt môi trường ảo
 Kích hoạt môi trường ảo bằng một trong hai lệnh sau:
 
-**Lệnh 1: **
+**Lệnh 1 (Windows):**
 ```bash
 venv-ai-adas\Scripts\activate
 ```
 
-**Lệnh 2 (nếu lệnh 1 không hoạt động):**
+**Lệnh 2 (Linux/macOS):**
 ```bash
-source venv-ai-adas\Scripts\activate
+source venv-ai-adas/bin/activate
 ```
 
 ### 3. Cài đặt thư viện cần thiết
@@ -66,23 +66,23 @@ Cài đặt toàn bộ thư viện từ tệp `requirements.txt`:
 pip install -r requirements.txt
 ```
 
-### 4. Cài thư viện
-Nếu muốn cài thêm thư viện thì gõ lệnh sau:
+### 4. Cài thêm thư viện mới (nếu cần)
 ```bash
 pip install <tên_thư_viện>
 pip freeze > requirements.txt
 ```
 
 ### 5. Chạy server AI
-Chạy server Flask:
 ```bash
 python run.py
 ```
 
-Sau khi chạy thành công, server hoạt động tại:
+Server chạy tại:
 ```
 http://localhost:8500/api/predict
 ```
+
+---
 
 ## 🧠 Các mô hình AI khả dụng
 - **lane** → `models/lane.pt`
@@ -94,7 +94,7 @@ http://localhost:8500/api/predict
 ---
 
 ## 🕒 Generated
-2025-10-06 15:48:47
+2025-10-06 16:08:48
 
 ---
 
