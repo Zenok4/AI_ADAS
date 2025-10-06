@@ -50,12 +50,12 @@ python -m venv venv-ai-adas
 ### 2. Kích hoạt môi trường ảo
 Kích hoạt môi trường ảo bằng một trong hai lệnh sau:
 
-**Lệnh 1 (Windows):**
+**Lệnh 1:**
 ```bash
 venv-ai-adas\Scripts\activate
 ```
 
-**Lệnh 2 (Linux/macOS):**
+**Lệnh 2 (Nếu lệnh 1 không hoạt động):**
 ```bash
 source venv-ai-adas/bin/activate
 ```
@@ -94,7 +94,7 @@ http://localhost:8500/api/predict
 ---
 
 ## 🕒 Generated
-2025-10-06 16:08:48
+2025-10-06 16:14:25
 
 ---
 
