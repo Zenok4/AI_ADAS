@@ -6,8 +6,8 @@ dotenv.load_dotenv()
 
 rf = Roboflow(api_key=os.getenv("ROBOFLOWKEY"))
 project = rf.workspace(os.getenv("ROBOWORKSPACE")).project(os.getenv("ROBOPROJECT"))
-version = project.version(2)
-dataset = version.download("folder")
+version = project.version(os.getenv("ROVOVERSION"))
+dataset = version.download(os.getenv("DATASETFORMAT"))
 
 old_name = dataset.location
 new_name = "datasets"
