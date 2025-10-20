@@ -74,12 +74,12 @@ Kích hoạt môi trường ảo bằng một trong hai lệnh sau:
 
 **Lệnh 1:**
 ```bash
-venv-ai-adas\\Scripts\\activate
+venv-ai-adas/Scripts/activate
 ```
 
 **Lệnh 2 (Nếu lệnh 1 không hoạt động):**
 ```bash
-source venv-ai-adas\\Scripts\\activate
+source venv-ai-adas/Scripts/activate
 ```
 
 ### 3. Cài đặt thư viện cần thiết

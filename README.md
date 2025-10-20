@@ -36,9 +36,6 @@
 ├── 📄 requirements.txt
 ├── 📄 run.py
 ├── 📂 train/
-│   └── 📂 add_signs/
-│       ├── 📄 data.yaml
-│       └── 📂 dataset/
 ```
 
 ---
@@ -57,12 +54,12 @@ Kích hoạt môi trường ảo bằng một trong hai lệnh sau:
 
 **Lệnh 1:**
 ```bash
-venv-ai-adas\Scripts\activate
+venv-ai-adas/Scripts/activate
 ```
 
 **Lệnh 2 (Nếu lệnh 1 không hoạt động):**
 ```bash
-source venv-ai-adas\Scripts\activate
+source venv-ai-adas/Scripts/activate
 ```
 
 ### 3. Cài đặt thư viện cần thiết
@@ -99,7 +96,7 @@ http://localhost:8500/api/predict
 ---
 
 ## 🕒 Generated
-2025-10-20 14:57:37
+2025-10-20 15:20:37
 
 ---
 
