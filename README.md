@@ -28,12 +28,17 @@
 │   └── 📂 utils/
 │       └── 📄 image_helper.py
 ├── 📄 config.yaml
+├── 📂 dataset/
 ├── 📄 generate_changelog.py
 ├── 📄 generate_readme.py
 ├── 📂 models/
 ├── 📄 README.md
 ├── 📄 requirements.txt
 ├── 📄 run.py
+├── 📂 train/
+│   └── 📂 add_signs/
+│       ├── 📄 data.yaml
+│       └── 📂 dataset/
 ```
 
 ---
@@ -57,7 +62,7 @@ venv-ai-adas\Scripts\activate
 
 **Lệnh 2 (Nếu lệnh 1 không hoạt động):**
 ```bash
-source venv-ai-adas/bin/activate
+source venv-ai-adas\Scripts\activate
 ```
 
 ### 3. Cài đặt thư viện cần thiết
@@ -94,7 +99,7 @@ http://localhost:8500/api/predict
 ---
 
 ## 🕒 Generated
-2025-10-06 16:14:25
+2025-10-20 14:57:37
 
 ---
 

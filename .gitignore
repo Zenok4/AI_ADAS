@@ -78,3 +78,7 @@ coverage.xml
 *.swp
 *.swo
 *.orig
+
+# --- Datasets ---
+data/
+dataset/
