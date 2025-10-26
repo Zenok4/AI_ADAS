@@ -63,6 +63,8 @@ dist/
 *.spec
 
 # --- Test / Reports ---
+test/images/
+test/results/
 coverage/
 htmlcov/
 .pytest_cache/
@@ -83,3 +85,7 @@ coverage.xml
 data/
 dataset/
 datasets/
+
+# --- Train ---
+train/
+yolov8n.pt
