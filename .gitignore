@@ -89,3 +89,4 @@ datasets/
 # --- Train ---
 train/
 yolov8n.pt
+test/test_ai_sign.py

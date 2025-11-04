@@ -3,21 +3,7 @@ server:
   port: 8500
 
 models:
-  lane:
-    path: models/lane.pt
-    conf: 0.5
-    iou: 0.45
-
   sign:
-    path: models/sign.pt
+    path: models/sign/best.pt
     conf: 0.5
     iou: 0.45
-
-  object:
-    path: models/object.pt
-    conf: 0.4
-    iou: 0.5
-
-  drowsy:
-    path: models/drowsy.h5
-    threshold: 0.7
