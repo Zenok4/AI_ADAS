@@ -66,7 +66,7 @@ def generate_readme():
 Tạo môi trường ảo trong thư mục gốc của dự án:
 ```bash
 cd AI_ADAS
-python -m venv venv-ai-adas
+py -3.11 -m venv venv-ai-adas
 ```
 
 ### 2. Kích hoạt môi trường ảo
