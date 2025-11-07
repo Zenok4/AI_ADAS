@@ -5,7 +5,7 @@ from pathlib import Path
 README_PATH = Path("README.md")
 CONFIG_PATH = Path("config.yaml")
 
-IGNORED_FOLDERS = {"__pycache__", "venv", "venv-ai-adas", ".vscode"}
+IGNORED_FOLDERS = {"__pycache__", "venv", "venv-ai-adas", ".vscode", "datasets", "train"}
 
 
 def build_tree(directory: Path, prefix=""):
@@ -21,7 +21,7 @@ def build_tree(directory: Path, prefix=""):
                 extension = "    " if is_last else "│   "
                 lines.extend(build_tree(item, prefix + extension))
         else:
-            if item.suffix in {".py", ".yaml", ".yml", ".txt", ".md"}:
+            if item.suffix in {".py", ".yaml", ".yml", ".txt", ".md"} and item.name not in IGNORED_FOLDERS:
                 lines.append(f"{prefix}{connector}📄 {item.name}")
     return lines
 
