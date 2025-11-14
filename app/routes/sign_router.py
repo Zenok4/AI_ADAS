@@ -8,33 +8,38 @@ sign_bp = Blueprint("sign", __name__)
 @sign_bp.route("/predict", methods=["POST"])
 def sign_predict():
     try:
-        image_file = request.files.get("image")
-        if not image_file:
+        data = request.get_json()
+        if not data or "image_base64" not in data:
             return jsonify({"data": []})
 
-        print("Received file:", image_file.filename)
+        base64_url = data["image_base64"]
 
-        # Kiểm tra hợp lệ
-        header = image_file.read(512)
-        image_file.seek(0)
-        file_type = imghdr.what(None, header)
-        if file_type is None:
-            print("Không phải ảnh hợp lệ")
+        # Decode ảnh từ base64
+        try:
+            import base64, cv2
+            import numpy as np
+
+            # Tách bỏ prefix “data:image/jpeg;base64,” nếu có
+            if "," in base64_url:
+                base64_url = base64_url.split(",")[1]
+
+            img_bytes = base64.b64decode(base64_url)
+            np_arr = np.frombuffer(img_bytes, np.uint8)
+            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        except Exception as e:
+            print("Decode base64 failed:", e)
             return jsonify({"data": []})
 
-        # Đọc ảnh
-        frame = read_image(image_file)
         if frame is None:
-            print("Không đọc được ảnh từ file")
+            print("Không tạo được ảnh từ base64")
             return jsonify({"data": []})
 
-        # Nhận diện bằng YOLO
+        # YOLO detect
         detections = sign_prediction(frame)
         print(f"Phát hiện {len(detections)} biển báo")
 
-        # Trả kết quả
         return jsonify({"data": detections})
 
     except Exception as e:
-        print("Error in sign_predict:", e)
+        print("Error:", e)
         return jsonify({"data": []})
