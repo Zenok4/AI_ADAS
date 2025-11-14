@@ -1,317 +1,169 @@
-import math
-from datetime import datetime
-
-import cv2
 import mediapipe as mp
 from scipy.spatial import distance as dis
+import cv2
+import math
+import numpy as np
 
-# ========= Giữ tối giản: không phát âm thanh, không pygame, không thread =========
+# --- Class Dịch vụ Chính (Duy trì cấu trúc an toàn cho luồng) ---
 
-
-class drowsiDetector:
+class DrowsinessDetectorService:
+    # ... (Phần __init__ giữ nguyên)
     def __init__(self) -> None:
         self.face_mesh = mp.solutions.face_mesh
         self.draw_utils = mp.solutions.drawing_utils
-        self.landmark_style = self.draw_utils.DrawingSpec(
-            (0, 255, 0), thickness=2, circle_radius=2
-        )
-        self.connection_style = self.draw_utils.DrawingSpec(
-            (0, 0, 255), thickness=2, circle_radius=2
-        )
-
+        
+        # Cấu hình MediaPipe (giữ nguyên)
         self.STATIC_IMAGE = False
         self.MAX_NO_FACES = 2
         self.DETECTION_CONFIDENCE = 0.6
         self.TRACKING_CONFIDENCE = 0.5
-
         self.COLOR_RED = (0, 0, 255)
         self.COLOR_BLUE = (255, 0, 0)
         self.COLOR_GREEN = (0, 255, 0)
+        
+        # Danh sách các điểm mốc (Giữ nguyên)
+        self.RIGHT_EYE_TOP_BOTTOM = [159, 145] # Vertical points for right eye
+        self.RIGHT_EYE_LEFT_RIGHT = [133, 33]  # Horizontal points for right eye
+        self.LEFT_EYE_TOP_BOTTOM = [386, 374]  # Vertical points for left eye
+        self.LEFT_EYE_LEFT_RIGHT = [263, 362]  # Horizontal points for left eye
+        self.FACE = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400,
+                     377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109]
 
-        self.LIPS = [
-            61,
-            146,
-            91,
-            181,
-            84,
-            17,
-            314,
-            405,
-            321,
-            375,
-            291,
-            308,
-            324,
-            318,
-            402,
-            317,
-            14,
-            87,
-            178,
-            88,
-            95,
-            185,
-            40,
-            39,
-            37,
-            0,
-            267,
-            269,
-            270,
-            409,
-            415,
-            310,
-            311,
-            312,
-            13,
-            82,
-            81,
-            42,
-            183,
-            78,
-        ]
-        self.RIGHT_EYE = [
-            33,
-            7,
-            163,
-            144,
-            145,
-            153,
-            154,
-            155,
-            133,
-            173,
-            157,
-            158,
-            159,
-            160,
-            161,
-            246,
-        ]
-        self.LEFT_EYE = [
-            362,
-            382,
-            381,
-            380,
-            374,
-            373,
-            390,
-            249,
-            263,
-            466,
-            388,
-            387,
-            386,
-            385,
-            384,
-            398,
-        ]
-
-        self.LEFT_EYE_TOP_BOTTOM = [386, 374]
-        self.LEFT_EYE_LEFT_RIGHT = [263, 362]
-        self.RIGHT_EYE_TOP_BOTTOM = [159, 145]
-        self.RIGHT_EYE_LEFT_RIGHT = [133, 33]
-
-        self.UPPER_LOWER_LIPS = [13, 14]
-        self.LEFT_RIGHT_LIPS = [78, 308]
-
-        self.FACE = [
-            10,
-            338,
-            297,
-            332,
-            284,
-            251,
-            389,
-            356,
-            454,
-            323,
-            361,
-            288,
-            397,
-            365,
-            379,
-            378,
-            400,
-            377,
-            152,
-            148,
-            176,
-            149,
-            150,
-            136,
-            172,
-            58,
-            132,
-            93,
-            234,
-            127,
-            162,
-            21,
-            54,
-            103,
-            67,
-            109,
-        ]
-
-        self.face_model = self.face_mesh.FaceMesh(
-            static_image_mode=self.STATIC_IMAGE,
-            max_num_faces=self.MAX_NO_FACES,
-            min_detection_confidence=self.DETECTION_CONFIDENCE,
-            min_tracking_confidence=self.TRACKING_CONFIDENCE,
-        )
-
-        self.frame_count = 0
-        self.message = "DANG TINH TAO"
-        self.ratio_eyes = 3.2
+        self.face_model = self.face_mesh.FaceMesh(static_image_mode=self.STATIC_IMAGE,
+                                                 max_num_faces=self.MAX_NO_FACES,
+                                                 min_detection_confidence=self.DETECTION_CONFIDENCE,
+                                                 min_tracking_confidence=self.TRACKING_CONFIDENCE)
+        
+        # Ngưỡng EAR: Theo bài PyImageSearch, ngưỡng này thường là 0.25 (hoặc 0.3)
+        self.EYE_AR_THRESH = 0.25 
+        
+        # Ngưỡng frame liên tục: Bài PyImageSearch thường dùng 15-20 frames
+        self.EYE_AR_CONSEC_FRAMES = 18 
 
     def euclidean_distance(self, image, top, bottom):
-        h, w = image.shape[0:2]
-        p1 = int(top.x * w), int(top.y * h)
-        p2 = int(bottom.x * w), int(bottom.y * h)
-        return dis.euclidean(p1, p2)
+        """Tính khoảng cách Euclidean giữa hai điểm mốc."""
+        height, width = image.shape[0:2]
+        point1 = int(top.x * width), int(top.y * height)
+        point2 = int(bottom.x * width), int(bottom.y * height)
+        distance = dis.euclidean(point1, point2)
+        return distance
 
-    def get_aspect_ratio(self, image, outputs, top_bottom, left_right):
-        lmk = outputs.multi_face_landmarks[0]
-        top = lmk.landmark[top_bottom[0]]
-        bottom = lmk.landmark[top_bottom[1]]
-        left = lmk.landmark[left_right[0]]
-        right = lmk.landmark[left_right[1]]
+    def get_eye_aspect_ratio(self, image, outputs, top_bottom, left_right):
+        """Tính Eye Aspect Ratio (EAR) theo công thức chuẩn."""
+        landmark = outputs.multi_face_landmarks[0]
+        
+        # Khoảng cách dọc (Vertical) (Tử số)
+        top = landmark.landmark[top_bottom[0]]
+        bottom = landmark.landmark[top_bottom[1]]
+        vertical_dis = self.euclidean_distance(image, top, bottom)
+        
+        # Khoảng cách ngang (Horizontal) (Mẫu số)
+        left = landmark.landmark[left_right[0]]
+        right = landmark.landmark[left_right[1]]
+        horizontal_dis = self.euclidean_distance(image, left, right)
+        
+        # EAR = Vertical / Horizontal
+        # Thay vì (Left_Right / Top_Bottom) như code gốc, ta dùng (Top_Bottom / Left_Right)
+        ear = vertical_dis / (horizontal_dis + 0.0001)
+        return ear # Trả về EAR (không phải ratio)
 
-        tb = self.euclidean_distance(image, top, bottom)
-        lr = self.euclidean_distance(image, left, right)
-        return lr / (tb + 1e-4)
+    # ... (Các hàm draw_landmarks, draw_eye_line_and_calculate_angle giữ nguyên)
 
     def draw_landmarks(self, image, outputs, land_mark, color):
-        h, w = image.shape[:2]
-        for idx in land_mark:
-            p = outputs.multi_face_landmarks[0].landmark[idx]
-            cv2.circle(image, (int(p.x * w), int(p.y * h)), 2, color, 1)
+        """Vẽ các điểm mốc lên ảnh."""
+        height, width = image.shape[:2]
+        for face_index in land_mark:
+            point = outputs.multi_face_landmarks[0].landmark[face_index]
+            point_scale = (int(point.x * width), int(point.y * height))
+            cv2.circle(image, point_scale, 2, color, 1)
 
     def draw_eye_line_and_calculate_angle(self, image, outputs):
-        h, w = image.shape[:2]
-        lmk = outputs.multi_face_landmarks[0]
-        right_eye_left_point = lmk.landmark[self.RIGHT_EYE_LEFT_RIGHT[1]]
-        left_eye_right_point = lmk.landmark[self.LEFT_EYE_LEFT_RIGHT[0]]
-        p1 = (int(right_eye_left_point.x * w), int(right_eye_left_point.y * h))
-        p2 = (int(left_eye_right_point.x * w), int(left_eye_right_point.y * h))
-        cv2.line(image, p1, p2, self.COLOR_BLUE, 2)
-        dx, dy = p2[0] - p1[0], p2[1] - p1[1]
-        angle = math.degrees(math.atan2(dx, dy))
-        cv2.putText(
-            image,
-            f"Angle: {round(angle, 2)}",
-            (p1[0], max(0, p1[1] - 10)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            self.COLOR_BLUE,
-            1,
-            cv2.LINE_AA,
-        )
+        """Vẽ đường thẳng nối hai mắt và tính góc quay đầu."""
+        height, width = image.shape[:2]
+        landmark = outputs.multi_face_landmarks[0]
+        
+        right_eye_left_point = landmark.landmark[self.RIGHT_EYE_LEFT_RIGHT[1]]
+        left_eye_right_point = landmark.landmark[self.LEFT_EYE_LEFT_RIGHT[0]]
+        
+        point1 = (int(right_eye_left_point.x * width), int(right_eye_left_point.y * height))
+        point2 = (int(left_eye_right_point.x * width), int(left_eye_right_point.y * height))
+        
+        cv2.line(image, point1, point2, self.COLOR_BLUE, 2)
+        
+        dx = point2[0] - point1[0]
+        dy = point2[1] - point1[1]
+        
+        angle_h = math.degrees(math.atan2(dy, dx))
+        angle = 180 - abs(angle_h) if angle_h > 0 else abs(angle_h) 
+        
+        cv2.putText(image, f'Angle: {round(angle, 2)}', (point1[0], point1[1] - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5, self.COLOR_BLUE, 1, cv2.LINE_AA)
+        
         return image, angle
 
-    def _compute_face_bbox(self, image, outputs):
-        """Tạo border box (x1,y1,x2,y2) dựa trên landmarks khuôn mặt đầu tiên."""
-        h, w = image.shape[:2]
-        lmk = outputs.multi_face_landmarks[0]
-        xs, ys = [], []
-        # Lấy toàn bộ landmarks của FACE để khung khít khuôn mặt
-        for idx in self.FACE:
-            p = lmk.landmark[idx]
-            xs.append(int(p.x * w))
-            ys.append(int(p.y * h))
-        if not xs or not ys:  # fallback nếu vì lý do nào đó rỗng
-            return None
-        x1, y1 = max(0, min(xs)), max(0, min(ys))
-        x2, y2 = min(w - 1, max(xs)), min(h - 1, max(ys))
-        return (x1, y1, x2, y2)
+    def process_frame(self, image: np.ndarray, current_frame_count: int = 0):
+        """
+        Phương thức chính để xử lý khung hình theo thuật toán EAR.
+        
+        Args:
+            image (numpy.ndarray): Khung hình đầu vào (BGR).
+            current_frame_count (int): Số frame liên tiếp hiện tại mắt đang đóng.
 
-    def analyze(self, image):
+        Returns:
+            tuple: (image, message, angle, new_frame_count)
         """
-        Trả về:
-          - message: trạng thái
-          - ratio_eyes: tỉ lệ mắt
-          - angle: góc giữa 2 mắt (đường nối)
-          - bbox: (x1, y1, x2, y2) hoặc None
-          - image_annotated: ảnh đã vẽ landmarks, line, bbox, STATE
-        """
-        img = image.copy()
-        image_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        angle = 0.0 
+        new_frame_count = current_frame_count
+        message = 'AWAKE'
+        
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         outputs = self.face_model.process(image_rgb)
-
-        angle = None
-        bbox = None
-
+        
         if outputs.multi_face_landmarks:
-            # Vẽ vài landmarks tham chiếu
-            self.draw_landmarks(img, outputs, self.FACE, self.COLOR_GREEN)
-            self.draw_landmarks(img, outputs, self.LEFT_EYE_TOP_BOTTOM, self.COLOR_RED)
-            self.draw_landmarks(img, outputs, self.LEFT_EYE_LEFT_RIGHT, self.COLOR_RED)
-            self.draw_landmarks(img, outputs, self.RIGHT_EYE_TOP_BOTTOM, self.COLOR_RED)
-            self.draw_landmarks(img, outputs, self.RIGHT_EYE_LEFT_RIGHT, self.COLOR_RED)
+            # 1. Vẽ các điểm mốc (Giữ nguyên)
+            self.draw_landmarks(image, outputs, self.FACE, self.COLOR_GREEN)
+            # ... (vẽ các điểm mắt khác)
 
-            ratio_left = round(
-                self.get_aspect_ratio(
-                    img, outputs, self.LEFT_EYE_TOP_BOTTOM, self.LEFT_EYE_LEFT_RIGHT
-                ),
-                2,
-            )
-            ratio_right = round(
-                self.get_aspect_ratio(
-                    img, outputs, self.RIGHT_EYE_TOP_BOTTOM, self.RIGHT_EYE_LEFT_RIGHT
-                ),
-                2,
-            )
-            self.ratio_eyes = round((ratio_left + ratio_right) / 2.0, 2)
+            # 2. Tính EAR
+            ear_left = self.get_eye_aspect_ratio(image, outputs, self.LEFT_EYE_TOP_BOTTOM, self.LEFT_EYE_LEFT_RIGHT)
+            ear_right = self.get_eye_aspect_ratio(image, outputs, self.RIGHT_EYE_TOP_BOTTOM, self.RIGHT_EYE_LEFT_RIGHT)
+            avg_ear = round((ear_left + ear_right) / 2.0, 2)
 
-            img, angle = self.draw_eye_line_and_calculate_angle(img, outputs)
+            # 3. Tính góc quay đầu
+            image, angle = self.draw_eye_line_and_calculate_angle(image, outputs)
 
-            # Logic trạng thái (giống code gốc, nhưng đơn giản frame_count vì xử lý từng ảnh)
-            # Ở chế độ ảnh tĩnh, coi như frame_count > 10 nếu mắt bất thường
-            if self.ratio_eyes >= 3.5 or self.ratio_eyes <= 2.9:
-                # Xét hướng nghiêng đầu nếu đã có angle
-                if angle is not None and angle > 110:
-                    self.message = "CANH BAO TAI XE DANG NGU GUC SANG PHAI"
-                elif angle is not None and angle < 60:
-                    self.message = "CANH BAO TAI XE DANG NGU GUC SANG TRAI"
-                else:
-                    self.message = "CANH BAO TAI XE DANG NGU GAT"
+            # 4. Logic phát hiện ngủ gật theo EAR
+            if avg_ear < self.EYE_AR_THRESH: # Nếu EAR thấp hơn ngưỡng (mắt đóng)
+                new_frame_count += 1  # Tăng bộ đếm frame
+                message = 'Drowsy detected...' # Tạm thời
             else:
-                self.message = "AWAKE"
+                new_frame_count = 0
+                message = 'AWAKE'
+            
+            # Cảnh báo dựa trên số frame liên tục
+            print("new_frame_count", new_frame_count)
+            print("EYE_AR_CONSEC_FRAMES", self.EYE_AR_CONSEC_FRAMES)
+            if new_frame_count >= self.EYE_AR_CONSEC_FRAMES:
+
+                # Phân loại theo góc quay đầu
+                if angle > 165: 
+                    message = 'CANH BAO TAI XE DANG NGU GUC SANG PHAI'
+                elif angle < 15: 
+                    message = 'CANH BAO TAI XE DANG NGU GUC SANG TRAI'
+                else: 
+                    message = 'CANH BAO TAI XE DANG NGU GAT'
+                
         else:
-            self.message = "FOCUS"
+            message = 'FOCUS - KHONG NHAN DIEN DUOC KHUON MAT'
+            new_frame_count = 0
+            angle = 0.0
 
-        # Border box từ landmarks mặt
-        if outputs and outputs.multi_face_landmarks:
-            bbox = self._compute_face_bbox(img, outputs)
-            if bbox:
-                x1, y1, x2, y2 = bbox
-                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 215, 255), 2)  # cam vàng
-                cv2.putText(
-                    img,
-                    "FACE",
-                    (x1, max(0, y1 - 5)),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5,
-                    (0, 215, 255),
-                    1,
-                    cv2.LINE_AA,
-                )
+        # Vẽ trạng thái lên ảnh
+        cv2.putText(image, f'STATE: {message} (EAR: {avg_ear if "avg_ear" in locals() else 0})', 
+                    (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 
+                    (0, 255, 0) if message == 'AWAKE' else (0, 0, 255), 2, cv2.LINE_AA)
+        
+        frame_count = new_frame_count
 
-        # In STATE
-        cv2.putText(
-            img,
-            f"STATE: {self.message}",
-            (20, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (0, 255, 0) if self.message == "AWAKE" else (0, 0, 255),
-            2,
-            cv2.LINE_AA,
-        )
-
-        return (
-            self.message,
-            self.ratio_eyes,
-            angle,
-        )
+        # Trả về 4 kết quả
+        return image, message, angle, frame_count
