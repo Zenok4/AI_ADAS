@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
-from app.utils.image_helper import read_image
 from app.services.sign_service import sign_prediction
-import imghdr
+import base64
+import cv2
+import numpy as np
 
 sign_bp = Blueprint("sign", __name__)
 
@@ -14,15 +15,11 @@ def sign_predict():
 
         base64_url = data["image_base64"]
 
-        # Decode ảnh từ base64
+        # Loại bỏ prefix nếu có
+        if "," in base64_url:
+            base64_url = base64_url.split(",")[1]
+
         try:
-            import base64, cv2
-            import numpy as np
-
-            # Tách bỏ prefix “data:image/jpeg;base64,” nếu có
-            if "," in base64_url:
-                base64_url = base64_url.split(",")[1]
-
             img_bytes = base64.b64decode(base64_url)
             np_arr = np.frombuffer(img_bytes, np.uint8)
             frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -36,10 +33,8 @@ def sign_predict():
 
         # YOLO detect
         detections = sign_prediction(frame)
-        print(f"Phát hiện {len(detections)} biển báo")
-
         return jsonify({"data": detections})
 
     except Exception as e:
-        print("Error:", e)
+        print("Error in AI server:", e)
         return jsonify({"data": []})
