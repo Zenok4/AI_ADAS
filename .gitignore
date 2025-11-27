@@ -65,6 +65,7 @@ dist/
 # --- Test / Reports ---
 test/images/
 test/results/
+test/result/
 coverage/
 htmlcov/
 .pytest_cache/

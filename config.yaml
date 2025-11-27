@@ -7,3 +7,7 @@ models:
     path: models/sign/best.pt
     conf: 0.5
     iou: 0.45
+  object:
+    path: models/object/best.pt
+    conf: 0.5
+    iou: 0.45

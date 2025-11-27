@@ -2,11 +2,13 @@ from flask import Blueprint, request, jsonify
 from app.utils.image_helper import read_image
 from app.services.sign_service import sign_prediction
 import imghdr
+import time
 
 sign_bp = Blueprint("sign", __name__)
 
 @sign_bp.route("/predict", methods=["POST"])
 def sign_predict():
+    start_time = time.time()
     try:
         data = request.get_json()
         if not data or "image_base64" not in data:
@@ -19,7 +21,7 @@ def sign_predict():
             import base64, cv2
             import numpy as np
 
-            # Tách bỏ prefix “data:image/jpeg;base64,” nếu có
+            # Tách bỏ prefix "data:image/jpeg;base64," nếu có
             if "," in base64_url:
                 base64_url = base64_url.split(",")[1]
 
@@ -38,7 +40,8 @@ def sign_predict():
         detections = sign_prediction(frame)
         print(f"Phát hiện {len(detections)} biển báo")
 
-        return jsonify({"data": detections})
+        processing_time = time.time() - start_time
+        return jsonify({"data": detections, "processing_time": processing_time})
 
     except Exception as e:
         print("Error:", e)
