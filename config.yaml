@@ -7,3 +7,8 @@ models:
     path: models/sign/best.pt
     conf: 0.5
     iou: 0.45
+
+  lane:
+    path: models/lane/best.pt
+    conf: 0.5
+    iou: 0.45
