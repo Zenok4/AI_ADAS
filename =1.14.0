@@ -1,0 +1,16 @@
+Requirement already satisfied: onnx in e:\capstone\ai_adas\venv-ai-adas\lib\site-packages (1.19.1)
+Collecting onnxscript
+  Using cached onnxscript-0.5.6-py3-none-any.whl.metadata (13 kB)
+Requirement already satisfied: numpy>=1.22 in e:\capstone\ai_adas\venv-ai-adas\lib\site-packages (from onnx) (1.26.4)
+Requirement already satisfied: protobuf>=4.25.1 in e:\capstone\ai_adas\venv-ai-adas\lib\site-packages (from onnx) (4.25.8)
+Requirement already satisfied: typing_extensions>=4.7.1 in e:\capstone\ai_adas\venv-ai-adas\lib\site-packages (from onnx) (4.15.0)
+Requirement already satisfied: ml_dtypes>=0.5.0 in e:\capstone\ai_adas\venv-ai-adas\lib\site-packages (from onnx) (0.5.3)
+Collecting onnx_ir<2,>=0.1.12 (from onnxscript)
+  Downloading onnx_ir-0.1.12-py3-none-any.whl.metadata (3.2 kB)
+Requirement already satisfied: packaging in e:\capstone\ai_adas\venv-ai-adas\lib\site-packages (from onnxscript) (25.0)
+Downloading onnxscript-0.5.6-py3-none-any.whl (683 kB)
+   ---------------------------------------- 683.0/683.0 kB 9.2 MB/s  0:00:00
+Downloading onnx_ir-0.1.12-py3-none-any.whl (129 kB)
+Installing collected packages: onnx_ir, onnxscript
+
+Successfully installed onnx_ir-0.1.12 onnxscript-0.5.6
