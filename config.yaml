@@ -9,5 +9,8 @@ models:
     iou: 0.45
   object:
     path: models/object/best.pt
+
+  lane:
+    path: models/lane/best.pt
     conf: 0.5
     iou: 0.45

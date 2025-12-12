@@ -2,107 +2,123 @@ import cv2
 import os
 import glob
 import sys
+import traceback
 
-# Thêm thư mục gốc vào path để có thể import drowsy_service
-# Giả sử file này nằm trong 'test/' và file 'drowsy_service.py' nằm trong 'test/'
-
-# Nếu cấu trúc file là /drowsy_service.py và /test/run_functional_test.py
-# Chúng ta cần thêm thư mục cha vào sys.path
+# --- 1. SETUP ĐƯỜNG DẪN & IMPORT ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
-# Thử import lại từ file gốc (ví dụ: 'app/services/drowsy_service.py')
-# *** ĐIỀU CHỈNH DÒNG NÀY THEO CẤU TRÚC THỰC TẾ CỦA BẠN ***
-# Giả sử file drowsy_service.py nằm cùng cấp với thư mục 'test'
+# Import hàm test Lane (cùng thư mục test/)
 try:
-    from app.services.drowsy_service import drowsiDetector
+    from test_lane_detection import run_lane_detection
+except ImportError:
+    print(" Cảnh báo: Không tìm thấy file 'test_lane_detection.py' cùng thư mục.")
+
+# Import class DrowsyDetector (từ app/services/)
+try:
+    from app.services.drowsy_service import DrowsinessDetectorService
 except ImportError as e:
-    print(f"Lỗi Import: Không thể tìm thấy class DrowsyDetector.")
-    print("Vui lòng đảm bảo file drowsy_service.py nằm đúng vị trí.")
+    print(f" Lỗi Import: Không thể tìm thấy class DrowsinessDetectorService.")
     print(f"Chi tiết lỗi: {e}")
-    sys.exit(1)
+    # Không exit ngay để vẫn có thể chạy test lane nếu muốn
+    DrowsinessDetectorService = None 
 
 
-def run_test_on_images():
-    """
-    Chạy DrowsyDetector trên tất cả ảnh trong thư mục 'test_images'
-    và lưu kết quả vào 'test_results'.
-    """
+# --- 2. HÀM TEST DROWSINESS ---
+def run_drowsiness_test():
+    print("\n" + "="*40)
+    print("  BẮT ĐẦU TEST: DROWSINESS DETECTION")
+    print("="*40)
 
-    # __file__ là đường dẫn đến file script này (run_functional_test.py)
-    # os.path.dirname(__file__) là thư mục 'test'
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # 1. Thư mục đầu vào (chứa ảnh test)
-    input_dir = os.path.join(base_dir, "images")
-
-    # 2. Thư mục đầu ra (để lưu kết quả)
-    output_dir = os.path.join(base_dir, "results")
-
-    # Tạo thư mục đầu ra nếu nó chưa tồn tại
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Tìm tất cả các file ảnh .jpg và .png trong thư mục đầu vào
-    image_paths = glob.glob(os.path.join(input_dir, "*.jpg")) + glob.glob(
-        os.path.join(input_dir, "*.png")
-    )
-
-    if not image_paths:
-        print(f"LỖI: Không tìm thấy ảnh .jpg hoặc .png nào trong thư mục:")
-        print(f"{input_dir}")
-        print(
-            "Vui lòng tạo thư mục 'test_images' cùng cấp với file test này và thêm ảnh vào."
-        )
+    if DrowsinessDetectorService is None:
+        print(" Bỏ qua test Drowsiness do lỗi import library.")
         return
 
-    print(f"Tìm thấy {len(image_paths)} ảnh. Bắt đầu xử lý...")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    input_dir = os.path.join(base_dir, "images")
+    output_dir = os.path.join(base_dir, "results", "drowsy_results") # Gom riêng vào folder con cho gọn
 
-    # Khởi tạo detector
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Lấy ảnh
+    image_paths = glob.glob(os.path.join(input_dir, "*.jpg")) + glob.glob(os.path.join(input_dir, "*.png"))
+
+    if not image_paths:
+        print(f" Không tìm thấy ảnh nào trong: {input_dir}")
+        return
+
+    print(f" Tìm thấy {len(image_paths)} ảnh. Đang xử lý...")
+
     try:
-        detector = drowsiDetector()
+        detector = DrowsinessDetectorService()
     except Exception as e:
-        print(f"Lỗi khi khởi tạo DrowsyDetector: {e}")
-        print(
-            "Vui lòng kiểm tra các thư viện (mediapipe, opencv) đã được cài đặt đúng."
-        )
+        print(f" Lỗi khởi tạo detector: {e}")
         return
 
     for img_path in image_paths:
-        # Đọc ảnh
+        filename = os.path.basename(img_path)
         image = cv2.imread(img_path)
 
         if image is None:
-            print(f"[Bỏ qua] Không thể đọc file ảnh: {img_path}")
             continue
-
-        print(f"\n--- Đang xử lý: {os.path.basename(img_path)} ---")
-
-        # 3. Chạy phân tích
+        
         try:
-            message, ratio, angle, bbox, annotated_image = detector.analyze(image)
+            # Chạy phân tích
+            annotated_image, message, angle, _= detector.process_frame(image, current_frame_count=0)
+            ratio = "N/A (See Image)"
+            
+            print(f" {filename}: {message} | Angle: {angle:.2f}")
 
-            # In kết quả ra console
-            print(f"  Trạng thái: {message}")
-            print(f"  Tỷ lệ mắt: {ratio}")
-            print(f"  Góc nghiêng: {angle}")
-            print(f"  Bbox: {bbox}")
-
-            # 4. Lưu ảnh kết quả
-            output_filename = f"result_{os.path.basename(img_path)}"
-            output_path = os.path.join(output_dir, output_filename)
-
+            # Lưu ảnh
+            output_path = os.path.join(output_dir, f"res_{filename}")
             cv2.imwrite(output_path, annotated_image)
-            print(f"  => Đã lưu kết quả vào: {output_path}")
 
         except Exception as e:
-            print(f"  LỖI khi xử lý ảnh {os.path.basename(img_path)}: {e}")
-            import traceback
+            print(f" Lỗi file {filename}: {e}")
 
-            traceback.print_exc()  # In ra chi tiết lỗi đầy đủ
-
-    print("\n✅ Hoàn thành xử lý tất cả các ảnh.")
+    print(f"✅ Hoàn thành test Drowsiness. Kết quả tại: {output_dir}")
 
 
+# --- 3. MAIN EXECUTION (MENU LỰA CHỌN) ---
 if __name__ == "__main__":
-    run_test_on_images()
+    print("\n" + "="*40)
+    print(" CHỌN CHỨC NĂNG MUỐN TEST:")
+    print("1. Test Cảnh báo buồn ngủ (Drowsiness)")
+    print("2. Test Nhận diện làn đường (Lane Detection)")
+    print("3. Chạy cả hai (All)")
+    print("="*40)
+    
+    choice = input("👉 Nhập số (1, 2 hoặc 3): ").strip()
+
+    if choice == '1':
+        run_drowsiness_test()
+        
+    elif choice == '2':
+        # Gọi hàm test Lane
+        try:
+            # Lưu ý: Import function này ở đầu file rồi nhé
+            if 'run_lane_detection' in globals():
+                run_lane_detection()
+            else:
+                from test_lane_detection import run_lane_detection
+                run_lane_detection()
+        except Exception as e:
+            print(f"Lỗi khi chạy Lane detection: {e}")
+
+    elif choice == '3':
+        run_drowsiness_test()
+        print("\n" + "-"*30 + "\n")
+        try:
+            if 'run_lane_detection' in globals():
+                run_lane_detection()
+            else:
+                from test_lane_detection import run_lane_detection
+                run_lane_detection()
+        except Exception as e:
+            print(f"Lỗi khi chạy Lane detection: {e}")
+            
+    else:
+        print("Lựa chọn không hợp lệ. Vui lòng chạy lại và nhập 1, 2 hoặc 3.")
+
+    print("\n === KẾT THÚC ===")
