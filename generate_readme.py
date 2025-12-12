@@ -85,7 +85,7 @@ source venv-ai-adas/Scripts/activate
 ### 3. Cài đặt thư viện cần thiết
 Cài đặt toàn bộ thư viện từ tệp `requirements.txt`:
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu130
 ```
 
 ### 4. Cài thêm thư viện mới (nếu cần)
@@ -101,7 +101,7 @@ python run.py
 
 Server chạy tại:
 ```
-http://localhost:8500/api/predict
+http://localhost:8500
 ```
 
 ---
