@@ -3,6 +3,7 @@ import time
 import logging
 from datetime import datetime
 from app.services.model_loader import get_model
+from app.utils.convert_classname import get_vietnamese_name
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +22,12 @@ def sign_prediction(frame: np.ndarray, conf_threshold=None, iou_threshold=None):
     detections = []
     for box in results.boxes:
         cls_id = int(box.cls[0])
+        sign_name_vi = get_vietnamese_name(cls_id, model_type='sign')
         detections.append({
             "box": box.xyxy[0].tolist(),
             "confidence": float(box.conf[0]),
             "class_id": cls_id,
-            "class_name": model.names[cls_id]
+            "class_name": sign_name_vi
         })
 
     end = time.perf_counter()

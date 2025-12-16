@@ -36,8 +36,8 @@ def lane_predict():
         detections = lane_prediction(frame)
         print(f"Phát hiện {len(detections)} làn đường")
 
-        return jsonify({"data": detections})
+        return jsonify(detections)
 
     except Exception as e:
         print("Lane Error:", e)
-        return jsonify({"data": []})
+        return jsonify([])
