@@ -5,10 +5,13 @@ server:
 models:
   sign:
     path: models/sign/best.pt
-    conf: 0.5
+    conf: 0.45
     iou: 0.45
+
   object:
     path: models/object/best.pt
+    conf: 0.45
+    iou: 0.5
 
   lane:
     path: models/lane/best.pt
