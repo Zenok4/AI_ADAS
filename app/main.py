@@ -18,7 +18,7 @@ def create_app():
     # 2. Đăng ký blueprint mới
     app.register_blueprint(object_bp, url_prefix="/object") 
     app.register_blueprint(lane_bp, url_prefix="/lane")
-
+    
     # Load models AI
     if not loaded_models:
         load_models()

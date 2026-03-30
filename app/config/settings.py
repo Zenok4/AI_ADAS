@@ -9,4 +9,6 @@ class Settings:
         self.PORT = config["server"]["port"]
         self.MODELS = config["models"]
 
+        self.COLLISION = config.get("collision", {})
+
 settings = Settings()

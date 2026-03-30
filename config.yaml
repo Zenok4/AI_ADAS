@@ -17,3 +17,32 @@ models:
     path: models/lane/best.pt
     conf: 0.5
     iou: 0.45
+  
+collision:
+  # Nửa bề rộng làn xe để xác định vật cản có nằm trong đường chạy hay không.
+  lane_half_width_m: 1.75
+  # Khoảng cách pixel tối đa để ghép cùng một vật thể giữa hai frame.
+  max_match_distance_px: 90.0
+  # Thời gian giữ track camera trước khi xóa.
+  max_track_age_s: 3.0
+
+  # Ngưỡng khoảng cách cho mức cảnh báo critical.
+  critical_distance_m: 2.5
+  # Ngưỡng khoảng cách cho mức cảnh báo high.
+  high_distance_m: 5.0
+  # Ngưỡng khoảng cách cho mức cảnh báo medium.
+  medium_distance_m: 10.0
+
+  # Ngưỡng Time To Collision (thời gian tới va chạm) cho mức critical.
+  critical_ttc_s: 1.5
+  # Ngưỡng Time To Collision (thời gian tới va chạm) cho mức high.
+  high_ttc_s: 3.0
+  # Ngưỡng Time To Collision (thời gian tới va chạm) cho mức medium.
+  medium_ttc_s: 5.0
+
+  # Tỷ lệ nội suy tiêu cự theo chiều rộng frame khi không có tham số camera.
+  default_focal_length_ratio: 0.9
+
+  # Cách hiểu vận tốc sensor: relative là vận tốc tương đối với xe.
+  sensor_velocity_mode: relative
+
