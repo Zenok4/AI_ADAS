@@ -8,6 +8,7 @@ from app.utils.convert_classname import get_vietnamese_name
 logger = logging.getLogger(__name__)
 
 def sign_prediction(frame: np.ndarray, conf_threshold=None, iou_threshold=None):
+    # load model and config
     sign_info = get_model("sign")
     model = sign_info["model"]
     conf_threshold = conf_threshold or sign_info["conf"]
