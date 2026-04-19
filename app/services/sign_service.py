@@ -3,6 +3,7 @@ import time
 import logging
 from datetime import datetime
 from app.services.model_loader import get_model
+from app.utils.roi_filter import roi_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,10 @@ def sign_prediction(frame: np.ndarray, conf_threshold=None, iou_threshold=None):
     start = time.perf_counter()
     logger.debug(f"sign_prediction start: {start_ts}")
 
-    results = model.predict(source=frame, conf=conf_threshold, iou=iou_threshold, verbose=False)[0]
+    # Crop vùng ROI: chỉ nhận diện biển báo phía trước (bỏ 2 bên đường)
+    cropped, offset = roi_middleware.crop("sign", frame)
+
+    results = model.predict(source=cropped, conf=conf_threshold, iou=iou_threshold, verbose=False)[0]
 
     detections = []
     for box in results.boxes:
@@ -27,6 +31,9 @@ def sign_prediction(frame: np.ndarray, conf_threshold=None, iou_threshold=None):
             "class_id": cls_id,
             "class_name": model.names[cls_id]
         })
+
+    # Remap tọa độ box về hệ tọa độ frame gốc
+    detections = roi_middleware.remap("sign", detections, offset)
 
     end = time.perf_counter()
     end_ts = datetime.now().isoformat()

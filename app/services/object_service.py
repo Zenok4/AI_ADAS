@@ -1,5 +1,6 @@
 import numpy as np
 from app.services.model_loader import get_model
+from app.utils.roi_filter import roi_middleware
 
 def object_prediction(frame: np.ndarray, conf_threshold=None, iou_threshold=None):
     """
@@ -13,15 +14,18 @@ def object_prediction(frame: np.ndarray, conf_threshold=None, iou_threshold=None
     conf_threshold = conf_threshold or model_info.get("conf", 0.40)
     iou_threshold = iou_threshold or model_info.get("iou", 0.45)
 
+    # Crop vùng ROI: chỉ nhận diện vật cản trong làn đường phía trước
+    cropped, offset = roi_middleware.crop("object", frame)
+
     results = model.predict(
-        source=frame,
+        source=cropped,
         conf=conf_threshold,
         iou=iou_threshold,
         verbose=False,
-        half=True,         
-        imgsz=640,         
-        max_det=20,         
-        agnostic_nms=True   
+        half=True,
+        imgsz=640,
+        max_det=20,
+        agnostic_nms=True
     )[0]
 
     detections = []
@@ -30,12 +34,15 @@ def object_prediction(frame: np.ndarray, conf_threshold=None, iou_threshold=None
         for box in results.boxes:
             cls_id = int(box.cls[0])
             x1, y1, x2, y2 = box.xyxy[0].tolist()
-            
+
             detections.append({
                 "box": [int(x1), int(y1), int(x2), int(y2)],
                 "confidence": round(float(box.conf[0]), 2),
                 "class_id": cls_id,
                 "class_name": model.names[cls_id]
             })
-            
+
+    # Remap tọa độ box về hệ tọa độ frame gốc
+    detections = roi_middleware.remap("object", detections, offset)
+
     return detections
