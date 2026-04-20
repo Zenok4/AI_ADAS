@@ -1,5 +1,3 @@
-import time
-
 class FrameCacheService:
     def __init__(self):
         self.cache = {}
@@ -7,11 +5,8 @@ class FrameCacheService:
     def get(self, obj_id):
         return self.cache.get(obj_id)
 
-    def update(self, obj_id, center):
-        self.cache[obj_id] = {
-            "center": center,
-            "time": time.time()
-        }
+    def update(self, obj_id, data):
+        self.cache[obj_id] = data
 
     def clear_missing(self, current_ids):
         self.cache = {

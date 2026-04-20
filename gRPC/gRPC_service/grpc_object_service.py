@@ -33,8 +33,15 @@ class ObjectService(object_pb2_grpc.ObjectServiceServicer):
             # 2. tracking
             tracks = self.tracker.track(detections)
 
-            # 3. speed
-            results = self.speed_service.estimate(tracks)
+            # 3. ego speed từ GPS
+            ego_speed = self.speed_service.compute_ego_speed(
+                lat=request.latitude,
+                lon=request.longitude,
+                captured_at=request.captured_at
+            )
+
+            # 4. speed estimation
+            results = self.speed_service.estimate(tracks, ego_speed)
 
             objects = []
             for obj in results:
