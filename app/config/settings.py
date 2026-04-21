@@ -2,7 +2,7 @@ import yaml
 
 class Settings:
     def __init__(self, file_path="config.yaml"):
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         self.HOST = config["server"]["host"]
