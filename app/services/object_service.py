@@ -18,29 +18,18 @@ def object_prediction(
     3. Return enriched objects + summary
     """
     try:
-        # 1. Lấy model đã load
         model_info = get_model("object")
-        model = model_info["model"]
 
-        # 2. Dự đoán (Giữ ngưỡng 0.40 để nhạy hơn với xe ở xa)
-        results = model.predict(frame, conf=0.40, verbose=False)
-        r = results[0]
+        results = run_prediction(model_info, frame)
         
         detections = []
-        if r.boxes:
-            for box in r.boxes:
-                x1, y1, x2, y2 = box.xyxy[0].tolist()
-                conf = float(box.conf[0])
-                cls_id = int(box.cls[0])
-                # label = model.names[cls_id]
-                label = get_vietnamese_name(cls_id, model_type='object')
 
-                detections.append({
-                    "box": [int(x1), int(y1), int(x2), int(y2)],
-                    "class_id": cls_id,
-                    "class_name": label,
-                    "confidence": round(conf, 2)
-                })
+        detections.append({
+            "box": [int(x1), int(y1), int(x2), int(y2)],
+            "class_id": cls_id,
+            "class_name": label,
+            "confidence": round(conf, 2)
+        })
         
         analysis = risk_service.analyze_camera_detections(
                     detections=detections,

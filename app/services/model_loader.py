@@ -15,7 +15,7 @@ def load_models():
         if _loaded_once:
             return loaded_models
         print("🔹 Loading models...")
-
+        torch.backends.cudnn.benchmark = True
         for name, info in settings.MODELS.items():
             model_path = info.get("path")
             if not os.path.exists(model_path):

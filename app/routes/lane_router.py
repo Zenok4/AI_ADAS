@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify
-from app.utils.image_helper import read_image
 from app.services.lane_service import lane_prediction
 import base64, cv2
 import numpy as np
