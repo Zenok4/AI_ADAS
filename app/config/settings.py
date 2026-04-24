@@ -10,4 +10,6 @@ class Settings:
         self.GRPC_PORT = config["server"]["grpc_port"]
         self.MODELS = config["models"]
 
+        self.COLLISION = config.get("collision", {})
+
 settings = Settings()
