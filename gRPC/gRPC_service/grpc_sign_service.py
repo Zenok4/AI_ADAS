@@ -1,44 +1,77 @@
+import time
 import cv2
 import numpy as np
 
+from debug.visual_logger import VisualLogger
+from debug.event_logger import EventLogger
+
+from app.services.sub_service.combined_sign_service import CombinedSignService
 import proto.sign_pb2 as sign_pb2
 import proto.sign_pb2_grpc as sign_pb2_grpc
 
-from app.services.sign_service import sign_prediction
+
+_combined_service = CombinedSignService(ocr_gpu=True)
 
 
 class SignService(sign_pb2_grpc.SignServiceServicer):
 
-    def Predict(self, request, context):
-        image_bytes = request.image
+    def __init__(self):
+        self.visual = VisualLogger()
+        self.event_logger = EventLogger()
 
-        nparr = np.frombuffer(image_bytes, np.uint8)
+    def Predict(self, request, context):
+        start_time = time.time()
+
+        # decode image
+        nparr = np.frombuffer(request.image, np.uint8)
         frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-        results = sign_prediction(frame)
+        if frame is None:
+            return sign_pb2.SignResponse()
 
-        detections = []
-        meta = None
+        # predict
+        output = _combined_service.predict(frame)
 
-        for r in results:
-            if "meta" in r:
-                meta = r["meta"]
-                continue
+        # 🎨 draw
+        debug_frame = self.visual.draw_sign(
+            frame.copy(),
+            output.detections
+        )
 
-            detections.append(
-                sign_pb2.Detection(
-                    box=r["box"],
-                    confidence=r["confidence"],
-                    class_id=r["class_id"],
-                    class_name=r["class_name"]
-                )
+        # 📸 save
+        image_path = self.visual.save(debug_frame, "sign")
+
+        # ⏱️ latency
+        processing_time = time.time() - start_time
+
+        # 🧾 log
+        if len(output.detections) > 0:
+            self.event_logger.log(
+                "sign",
+                image_path,
+                {
+                    "num_signs": len(output.detections),
+                    "latency_ms": processing_time * 1000
+                }
             )
 
+        # response
+        detections = [
+            sign_pb2.Detection(
+                box=det.box,
+                confidence=det.confidence,
+                class_id=det.class_id,
+                class_name=det.combined_name,
+            )
+            for det in output.detections
+        ]
+
+        meta = output.meta
         return sign_pb2.SignResponse(
             detections=detections,
             meta=sign_pb2.Meta(
-                start_time=meta["start_time"],
-                end_time=meta["end_time"],
-                duration_ms=meta["duration_ms"]
-            ) if meta else None
+                start_time=meta.start_time,
+                end_time=meta.end_time,
+                duration_ms=meta.duration_ms,
+            ),
         )
