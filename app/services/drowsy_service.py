@@ -146,7 +146,7 @@ class DrowsinessDetectorService:
             if new_frame_count >= self.EYE_AR_CONSEC_FRAMES:
 
                 # Phân loại theo góc quay đầu
-                if angle > 165: 
+                if angle > 175: 
                     message = 'CANH BAO TAI XE DANG NGU GUC SANG PHAI'
                 elif angle < 15: 
                     message = 'CANH BAO TAI XE DANG NGU GUC SANG TRAI'

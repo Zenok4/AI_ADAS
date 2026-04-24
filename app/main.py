@@ -14,7 +14,7 @@ def create_app():
     app.register_blueprint(sign_bp, url_prefix="/sign")
     app.register_blueprint(object_bp, url_prefix="/object") 
     app.register_blueprint(lane_bp, url_prefix="/lane")
-
+    
     # Load models AI
     if not loaded_models:
         load_models()
