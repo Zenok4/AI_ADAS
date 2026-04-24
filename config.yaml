@@ -26,38 +26,22 @@ models:
     path: models/lane/best.pt
     conf: 0.5
     iou: 0.45
-  
-collision:
-  # Ngưỡng vùng xe chạy
-  lane_half_width_m: 1.75
-  path_min_overlap_m: 0.25
-  uncertainty_min_m: 0.20
-  uncertainty_max_m: 0.75
-  near_path_medium_distance_m: 5.0
-  near_path_low_distance_m: 12.0
 
-  # Ngưỡng khoảng cách cảnh báo
+collision:
+  # Distance thresholds for collision warning
   critical_distance_m: 2.5
   high_distance_m: 5.0
   medium_distance_m: 10.0
 
-  # Ngưỡng Time To Collision
+  # Time-to-collision thresholds
   critical_ttc_s: 1.5
   high_ttc_s: 3.0
   medium_ttc_s: 5.0
 
-  # Camera-only
-  default_focal_length_ratio: 0.9
+  # Detection quality filters
   min_confidence: 0.40
   min_box_width_px: 20
   min_box_height_px: 20
 
-  # Hệ số làm mượt bbox theo EMA; càng lớn thì bám sát frame hiện tại hơn, càng nhỏ thì mượt hơn.
-  bbox_smoothing_alpha: 0.6
-
-  # Theo dõi frame trước
-  max_track_age_s: 3.0
-
-  # Dự phòng / legacy
-  sensor_velocity_mode: relative
-  max_match_distance_px: 90.0
+  # Default focal length in pixel for depth approximation
+  default_focal_length_px: 1000.0
