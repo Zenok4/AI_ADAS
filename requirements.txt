@@ -17,7 +17,8 @@ fonttools==4.60.1
 fsspec==2025.9.0
 gast==0.6.0
 google-pasta==0.2.0
-grpcio==1.75.1
+grpcio==1.62.0
+grpcio-tools==1.62.0
 h5py==3.14.0
 idna==3.7
 itsdangerous==2.2.0
@@ -48,7 +49,7 @@ pillow==11.3.0
 pillow-avif-plugin==1.5.2
 polars==1.34.0
 polars-runtime-32==1.34.0
-protobuf==4.25.8
+protobuf==4.25.3
 psutil==7.1.0
 pycparser==2.23
 Pygments==2.19.2

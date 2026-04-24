@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify
-from app.utils.image_helper import read_image
 from app.services.lane_service import lane_prediction
 import base64, cv2
 import numpy as np
@@ -36,8 +35,8 @@ def lane_predict():
         detections = lane_prediction(frame)
         print(f"Phát hiện {len(detections)} làn đường")
 
-        return jsonify({"data": detections})
+        return jsonify(detections)
 
     except Exception as e:
         print("Lane Error:", e)
-        return jsonify({"data": []})
+        return jsonify([])
