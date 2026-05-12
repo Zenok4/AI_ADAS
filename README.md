@@ -22,11 +22,15 @@
 │   ├── 📂 routes/
 │   │   ├── 📄 __init__.py
 │   │   ├── 📄 drowsy_router.py
+│   │   ├── 📄 lane_router.py
+│   │   ├── 📄 object_router.py
 │   │   └── 📄 sign_router.py
 │   ├── 📂 services/
 │   │   ├── 📄 __init__.py
 │   │   ├── 📄 drowsy_service.py
+│   │   ├── 📄 lane_service.py
 │   │   ├── 📄 model_loader.py
+│   │   ├── 📄 object_service.py
 │   │   └── 📄 sign_service.py
 │   └── 📂 utils/
 │       └── 📄 image_helper.py
@@ -35,24 +39,16 @@
 ├── 📄 generate_readme.py
 ├── 📄 install_dataset.py
 ├── 📂 models/
+│   ├── 📂 lane/
+│   ├── 📂 object/
 │   └── 📂 sign/
 ├── 📄 README.md
 ├── 📄 requirements.txt
 ├── 📄 run.py
 ├── 📂 test/
-│   ├── 📂 images/
-│   ├── 📂 results/
-│   │   ├── 📂 run_#1/
-│   │   │   └── 📄 result_1.txt
-│   │   ├── 📂 run_#2/
-│   │   │   └── 📄 result_1.txt
-│   │   ├── 📂 run_#3/
-│   │   │   ├── 📄 images (1)_result.txt
-│   │   │   ├── 📄 images_result.txt
-│   │   │   └── 📄 test_result.txt
-│   │   └── 📂 run_#4/
-│   │       ├── 📄 summary.txt
 │   ├── 📄 test.py
+│   ├── 📄 test_lane_detection.py
+│   ├── 📄 test_object_model.py
 │   ├── 📄 test_sign_detection.py
 │   └── 📄 test_sign_router.py
 ```
@@ -84,7 +80,7 @@ source venv-ai-adas/Scripts/activate
 ### 3. Cài đặt thư viện cần thiết
 Cài đặt toàn bộ thư viện từ tệp `requirements.txt`:
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu130
 ```
 
 ### 4. Cài thêm thư viện mới (nếu cần)
@@ -100,19 +96,21 @@ python run.py
 
 Server chạy tại:
 ```
-http://localhost:8500/api/predict
+http://localhost:8500
 ```
 
 ---
 
 ## 🧠 Các mô hình AI khả dụng
 - **sign** → `models/sign/best.pt`
+- **object** → `models/object/best.pt`
+- **lane** → `models/lane/best.pt`
 
 
 ---
 
 ## 🕒 Generated
-2025-11-07 17:01:33
+2025-12-12 21:31:02
 
 ---
 

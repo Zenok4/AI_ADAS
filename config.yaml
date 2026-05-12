@@ -1,19 +1,65 @@
 server:
   host: 0.0.0.0
-  port: 8500
+  port: 8000
+  grpc_port: "[::]:8500"
+
+# ── Region of Interest (ROI) ──────────────────────────────────────────────
+# Giới hạn vùng nhận diện cho từng module AI.
+# Tọa độ: tỉ lệ 0.0–1.0 (ví dụ 0.5 = 50% chiều rộng/cao)
+#          hoặc pixel tuyệt đối (số nguyên > 1).
+# mode: "crop"  → cắt frame, tọa độ box tự động dịch về hệ gốc
+#        "mask" → giữ kích thước, vùng ngoài ROI tô đen
+roi:
+  sign:
+    enabled: true
+    mode: crop
+    x1: 0.0
+    y1: 0.0
+    x2: 1.0
+    y2: 0.6       # Chỉ nhận diện nửa trên của frame
+
+  object:
+    enabled: true
+    mode: crop
+    x1: 0.0
+    y1: 0.2       # Bỏ qua 20% trên (bầu trời)
+    x2: 1.0
+    y2: 1.0
+
+  lane:
+    enabled: true
+    mode: crop
+    x1: 0.0
+    y1: 0.4       # Chỉ nhận diện nửa dưới (mặt đường)
+    x2: 1.0
+    y2: 1.0
+
+
 
 models:
   sign:
     path: models/sign/best.pt
-    conf: 0.5
+    conf: 0.45
     iou: 0.45
+    imgsz: 640
+    max_det: 100
+    agnostic_nms: false
+    half: false
+
   object:
     path: models/object/best.pt
+    conf: 0.45
+    iou: 0.5
+    imgsz: 640
+    max_det: 100
+    agnostic_nms: false
+    half: false
+
+  lane:
+    path: models/lane/best.pt
     conf: 0.5
     iou: 0.45
-
-# ROI (Region of Interest) - tỉ lệ theo kích thước frame (0.0 -> 1.0)
-# Format: [x_min, y_min, x_max, y_max]
-roi:
-  sign:   [0.20, 0.00, 0.80, 0.65]   # Vùng trung tâm phía trước, bỏ 2 bên đường
-  object: [0.25, 0.35, 0.75, 1.00]   # Làn đường phía trước (dải giữa)
+    imgsz: 640
+    max_det: 100
+    agnostic_nms: false
+    half: false

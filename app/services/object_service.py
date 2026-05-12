@@ -1,48 +1,38 @@
-import numpy as np
 from app.services.model_loader import get_model
-from app.utils.roi_filter import roi_middleware
+from app.utils.convert_classname import get_vietnamese_name
+from app.utils.run_predict import run_prediction
+from app.middleware.roi_filter import apply_roi, patch_detections
+from app.config.settings import settings
 
-def object_prediction(frame: np.ndarray, conf_threshold=None, iou_threshold=None):
-    """
-    Hàm xử lý dự đoán vật cản (Object Detection)
-    Input: Frame ảnh (OpenCV numpy array)
-    Output: List các object detect được
-    """
-    model_info = get_model("object")
-    model = model_info["model"]
+def object_prediction(frame):
+    try:
+        model_info = get_model("object")
 
-    conf_threshold = conf_threshold or model_info.get("conf", 0.40)
-    iou_threshold = iou_threshold or model_info.get("iou", 0.45)
+        # Áp dụng ROI
+        roi_frame, ctx = apply_roi(frame, settings.ROI["object"])
 
-    # Crop vùng ROI: chỉ nhận diện vật cản trong làn đường phía trước
-    cropped, offset = roi_middleware.crop("object", frame)
+        results = run_prediction(model_info, roi_frame)
+        
+        detections = []
 
-    results = model.predict(
-        source=cropped,
-        conf=conf_threshold,
-        iou=iou_threshold,
-        verbose=False,
-        half=True,
-        imgsz=640,
-        max_det=20,
-        agnostic_nms=True
-    )[0]
-
-    detections = []
-
-    if results.boxes:
         for box in results.boxes:
-            cls_id = int(box.cls[0])
             x1, y1, x2, y2 = box.xyxy[0].tolist()
+            conf = float(box.conf[0])
+            cls_id = int(box.cls[0])
+
+            label = get_vietnamese_name(cls_id, model_type='object')
 
             detections.append({
-                "box": [int(x1), int(y1), int(x2), int(y2)],
-                "confidence": round(float(box.conf[0]), 2),
-                "class_id": cls_id,
-                "class_name": model.names[cls_id]
+                "bbox": [int(x1), int(y1), int(x2), int(y2)],
+                "label": label,
+                "confidence": round(conf, 2)
             })
 
-    # Remap tọa độ box về hệ tọa độ frame gốc
-    detections = roi_middleware.remap("object", detections, offset)
+        # Dịch tọa độ về hệ gốc nếu đã crop
+        detections = patch_detections(detections, ctx)
+        
+        return detections
 
-    return detections
+    except Exception as e:
+        print(f"Error in object_prediction: {e}")
+        return []

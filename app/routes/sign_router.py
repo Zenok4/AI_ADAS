@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify
-from app.utils.image_helper import read_image
 from app.services.sign_service import sign_prediction
 import imghdr
 import time
