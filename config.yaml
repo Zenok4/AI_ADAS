@@ -34,6 +34,15 @@ roi:
     x2: 1.0
     y2: 1.0
 
+# ── Lane Departure Warning (LDW) ──────────────────────────────────────────
+# Cấu hình cảnh báo lệch làn đường.
+lane_departure:
+  enabled: true
+  offset_threshold: 0.2   # Ngưỡng lệch (0.0–1.0) tính theo tỉ lệ nửa chiều rộng frame
+                           # Ví dụ: 0.2 → cảnh báo khi xe lệch > 20% nửa chiều rộng
+  min_confidence: 0.4      # Bỏ qua vạch có confidence thấp hơn ngưỡng này
+  stable_frames_required: 5  # Số frame lệch liên tiếp trước khi phát cảnh báo (chống nhấp nháy)
+
 
 
 models:
