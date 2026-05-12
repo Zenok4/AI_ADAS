@@ -1,12 +1,17 @@
 from app.services.model_loader import get_model
 from app.utils.convert_classname import get_vietnamese_name
 from app.utils.run_predict import run_prediction
+from app.middleware.roi_filter import apply_roi, patch_detections
+from app.config.settings import settings
 
 def object_prediction(frame):
     try:
         model_info = get_model("object")
 
-        results = run_prediction(model_info, frame)
+        # Áp dụng ROI
+        roi_frame, ctx = apply_roi(frame, settings.ROI["object"])
+
+        results = run_prediction(model_info, roi_frame)
         
         detections = []
 
@@ -22,6 +27,9 @@ def object_prediction(frame):
                 "label": label,
                 "confidence": round(conf, 2)
             })
+
+        # Dịch tọa độ về hệ gốc nếu đã crop
+        detections = patch_detections(detections, ctx)
         
         return detections
 

@@ -5,6 +5,8 @@ from datetime import datetime
 from app.services.model_loader import get_model
 from app.utils.convert_classname import get_vietnamese_name
 from app.utils.run_predict import run_prediction
+from app.middleware.roi_filter import apply_roi, patch_detections
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +18,10 @@ def sign_prediction(frame: np.ndarray, conf_threshold=None, iou_threshold=None):
     start = time.perf_counter()
     logger.debug(f"sign_prediction start: {start_ts}")
 
-    results = run_prediction(model_info, frame)
+    # Áp dụng ROI
+    roi_frame, ctx = apply_roi(frame, settings.ROI["sign"])
+
+    results = run_prediction(model_info, roi_frame)
 
     detections = []
     
@@ -29,6 +34,9 @@ def sign_prediction(frame: np.ndarray, conf_threshold=None, iou_threshold=None):
             "class_id": cls_id,
             "class_name": sign_name_vi
         })
+
+    # Dịch tọa độ về hệ gốc nếu đã crop
+    detections = patch_detections(detections, ctx)
 
     end = time.perf_counter()
     end_ts = datetime.now().isoformat()

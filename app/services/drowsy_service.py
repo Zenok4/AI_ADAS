@@ -115,7 +115,7 @@ class DrowsinessDetectorService:
         angle = 0.0 
         new_frame_count = current_frame_count
         message = 'AWAKE'
-        
+
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         outputs = self.face_model.process(image_rgb)
         

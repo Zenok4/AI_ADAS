@@ -3,6 +3,39 @@ server:
   port: 8000
   grpc_port: "[::]:8500"
 
+# ── Region of Interest (ROI) ──────────────────────────────────────────────
+# Giới hạn vùng nhận diện cho từng module AI.
+# Tọa độ: tỉ lệ 0.0–1.0 (ví dụ 0.5 = 50% chiều rộng/cao)
+#          hoặc pixel tuyệt đối (số nguyên > 1).
+# mode: "crop"  → cắt frame, tọa độ box tự động dịch về hệ gốc
+#        "mask" → giữ kích thước, vùng ngoài ROI tô đen
+roi:
+  sign:
+    enabled: true
+    mode: crop
+    x1: 0.0
+    y1: 0.0
+    x2: 1.0
+    y2: 0.6       # Chỉ nhận diện nửa trên của frame
+
+  object:
+    enabled: true
+    mode: crop
+    x1: 0.0
+    y1: 0.2       # Bỏ qua 20% trên (bầu trời)
+    x2: 1.0
+    y2: 1.0
+
+  lane:
+    enabled: true
+    mode: crop
+    x1: 0.0
+    y1: 0.4       # Chỉ nhận diện nửa dưới (mặt đường)
+    x2: 1.0
+    y2: 1.0
+
+
+
 models:
   sign:
     path: models/sign/best.pt
