@@ -13,18 +13,22 @@ Luồng:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+import cv2
 import easyocr
 import numpy as np
 
 from app.services.sign_service import sign_prediction
 from app.services.sub_service.sign_ocr_parser import parse_sub_sign_text
 from app.services.sub_service.sign_name_builder import build_combined_name
+from app.utils.convert_classname import SIGN_CLASSES
 
 logger = logging.getLogger(__name__)
 
@@ -74,30 +78,31 @@ class CombinedSignOutput:
 # Sub-sign classification
 # ---------------------------------------------------------------------------
 
-_SUB_SIGN_KEYWORDS = frozenset({
-    "bien bao phu", "bien phu",
-    "bien bao phu bieu thi thoi gian", "bien bao phu xe tai",
-    "bien bao phu pham vi tac dung cua bien",
-    "bien bao phu khoang cach den doi tuong bao hieu",
-    "bien bao phu xe khach",
-    "hieu luc voi xe tai 2_5tan", "hieu luc voi xe khach", "hieu luc voi xe tai",
-    "bien phu xe gan may xe dap", "bien phu thu phi do xe",
-    "bien phu tru xe buyt",
-    "bien khu vuc thoi gian cam xe khach", "bien khu vuc thoi gian cam xe tai",
-    "bien phu quy dinh loai xe khach",
-    "bien den tin hieu cho nguoi di bo",
-    "bien phu khu vuc doan tra khach",
-    "bien khu vuc cam do xe", "bien chi dan duong mot chieu",
-    "bien phu thoi gian", "bien phu do xe ngoai gio cao diem",
-    "bien phu huong tac dung", "bien chi dan huong di khoang cach",
-    "bien phu o to",
-    "bien chi dan danh cho nguoi di bo sang ngang",
-    "bien cam do xe ngay chan",
-})
+# Các từ khóa tiếng Việt dùng để nhận diện biển phụ trong SIGN_CLASSES.
+# Khớp theo substring với tên đã được chuẩn hoá (lower, strip).
+_SUB_SIGN_VI_KEYWORDS: tuple[str, ...] = (
+    "biển báo phụ",
+    "biển phụ",
+    "biển khu vực",
+    "biển chỉ dẫn đường một chiều",
+    "biển chỉ dẫn hướng đi khoảng cách",
+    "biển chỉ dẫn dành cho người đi bộ sang ngang",
+    "hiệu lực với xe",
+)
+
+# Tập hợp class_id biển phụ — tự động tính từ SIGN_CLASSES, không hardcode số.
+_SUB_SIGN_IDS: frozenset[int] = frozenset(
+    class_id
+    for class_id, name in SIGN_CLASSES.items()
+    if any(kw in name.strip().lower() for kw in _SUB_SIGN_VI_KEYWORDS)
+)
+
+logger.debug(f"Sub-sign class IDs: {sorted(_SUB_SIGN_IDS)}")
 
 
-def _is_sub_sign(class_name: str) -> bool:
-    return any(kw in class_name.strip().lower() for kw in _SUB_SIGN_KEYWORDS)
+def _is_sub_sign(class_id: int) -> bool:
+    """Kiểm tra biển phụ dựa trên class_id — không phụ thuộc tên hiển thị."""
+    return class_id in _SUB_SIGN_IDS
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +133,8 @@ class CombinedSignService:
         ocr_gpu          : dùng GPU cho EasyOCR
         max_vertical_gap : khoảng cách dọc tối đa (px) để ghép biển phụ
         min_h_overlap    : tỉ lệ chồng lấp ngang tối thiểu để ghép biển phụ
+        ocr_workers      : số thread chạy song song khi có nhiều biển phụ
+        ocr_cache_size   : số lượng crop tối đa được lưu trong cache (LRU)
     """
 
     def __init__(
@@ -136,14 +143,23 @@ class CombinedSignService:
         ocr_gpu: bool = False,
         max_vertical_gap: float = 60.0,
         min_h_overlap: float = 0.4,
+        ocr_workers: int = 4,
+        ocr_cache_size: int = 256,
     ):
         self._max_v_gap = max_vertical_gap
         self._min_h_ovl = min_h_overlap
+        self._ocr_workers = ocr_workers
+        self._ocr_cache_size = ocr_cache_size
+
+        # Cache: md5(crop bytes) → ocr_text
+        # Dùng dict đơn giản với eviction FIFO khi đầy (đủ dùng cho video stream)
+        self._ocr_cache: dict[str, str] = {}
 
         langs = ocr_languages or ["vi", "en"]
         logger.info(f"Loading EasyOCR (langs={langs}, gpu={ocr_gpu}) …")
         self._ocr = easyocr.Reader(langs, gpu=ocr_gpu)
-        logger.info("CombinedSignService ready.")
+        self._executor = ThreadPoolExecutor(max_workers=ocr_workers, thread_name_prefix="ocr")
+        logger.info(f"CombinedSignService ready (workers={ocr_workers}, cache={ocr_cache_size}).")
 
     # ------------------------------------------------------------------
     # Public API
@@ -222,7 +238,7 @@ class CombinedSignService:
     def _split(detections: list[dict]) -> tuple[list[dict], list[dict]]:
         main_list, sub_list = [], []
         for det in detections:
-            (sub_list if _is_sub_sign(det["class_name"]) else main_list).append(det)
+            (sub_list if _is_sub_sign(det["class_id"]) else main_list).append(det)
         return main_list, sub_list
 
     def _associate(
@@ -262,28 +278,83 @@ class CombinedSignService:
     def _process_sub_signs(
         self, frame: np.ndarray, raw_subs: list[dict]
     ) -> list[SubSignResult]:
-        """Crop biển phụ → OCR → parse."""
-        results = []
+        """Crop biển phụ → preprocess → cache check → OCR song song → parse."""
+        if not raw_subs:
+            return []
+
         h, w = frame.shape[:2]
 
+        # --- Chuẩn bị crops (preprocess ngay tại đây, trước khi spawn thread) ---
+        crops: list[tuple[dict, np.ndarray, str]] = []   # (sub, crop, cache_key)
         for sub in raw_subs:
             x1, y1, x2, y2 = [int(v) for v in sub["box"]]
             x1, y1 = max(0, x1), max(0, y1)
             x2, y2 = min(w, x2), min(h, y2)
+            crop = frame[y1:y2, x1:x2]
 
-            crop     = frame[y1:y2, x1:x2]
-            ocr_text = ""
-            parsed: dict = {}
+            if crop.size == 0:
+                crops.append((sub, crop, ""))
+                continue
 
-            if crop.size > 0:
+            # ① Preprocess: grayscale + upscale nhỏ để OCR nhanh hơn và chính xác hơn
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+            ch, cw = gray.shape[:2]
+            # Upscale nếu quá nhỏ (OCR kém trên ảnh nhỏ hơn 32px chiều cao)
+            if ch < 48:
+                scale = max(1.0, 48 / ch)
+                gray = cv2.resize(
+                    gray,
+                    (int(cw * scale), int(ch * scale)),
+                    interpolation=cv2.INTER_LINEAR,
+                )
+
+            # ② Cache key: md5 của raw bytes (nhanh hơn perceptual hash, đủ dùng)
+            cache_key = hashlib.md5(gray.tobytes(), usedforsecurity=False).hexdigest()
+            crops.append((sub, gray, cache_key))
+
+        # --- Tách cache hit / miss ---
+        results_map: dict[int, str] = {}   # idx → ocr_text
+        miss_indices: list[int] = []
+
+        for idx, (sub, crop, cache_key) in enumerate(crops):
+            if crop.size == 0:
+                results_map[idx] = ""
+                continue
+            if cache_key and cache_key in self._ocr_cache:
+                results_map[idx] = self._ocr_cache[cache_key]
+                logger.debug(f"OCR cache hit idx={idx}")
+            else:
+                miss_indices.append(idx)
+
+        # --- ③ Parallel OCR cho các cache miss ---
+        if miss_indices:
+            def _run_ocr(idx: int) -> tuple[int, str]:
+                _, crop, cache_key = crops[idx]
                 try:
-                    ocr_out  = self._ocr.readtext(crop, detail=0)
-                    ocr_text = " ".join(ocr_out).strip()
-                    parsed   = parse_sub_sign_text(ocr_text)
-                    logger.debug(f"OCR: '{ocr_text}' → {parsed}")
+                    ocr_out = self._ocr.readtext(crop, detail=0)
+                    text = " ".join(ocr_out).strip()
                 except Exception as exc:
-                    logger.warning(f"OCR failed {sub['box']}: {exc}")
+                    logger.warning(f"OCR failed idx={idx}: {exc}")
+                    text = ""
+                return idx, cache_key, text
 
+            futures = {self._executor.submit(_run_ocr, idx): idx for idx in miss_indices}
+            for future in as_completed(futures):
+                idx, cache_key, text = future.result()
+                results_map[idx] = text
+                if cache_key:
+                    # Evict FIFO khi cache đầy
+                    if len(self._ocr_cache) >= self._ocr_cache_size:
+                        oldest_key = next(iter(self._ocr_cache))
+                        del self._ocr_cache[oldest_key]
+                    self._ocr_cache[cache_key] = text
+                logger.debug(f"OCR result idx={idx}: '{text}'")
+
+        # --- Ghép kết quả theo thứ tự gốc ---
+        results: list[SubSignResult] = []
+        for idx, (sub, _, _) in enumerate(crops):
+            ocr_text = results_map.get(idx, "")
+            parsed = parse_sub_sign_text(ocr_text) if ocr_text else {}
             results.append(SubSignResult(
                 box=sub["box"],
                 confidence=sub["confidence"],
