@@ -76,6 +76,7 @@ class CombinedSignOutput:
 
 _SUB_SIGN_KEYWORDS = frozenset({
     "bien bao phu", "bien phu",
+    "biển báo phụ biểu thị thời gian",
     "bien bao phu bieu thi thoi gian", "bien bao phu xe tai",
     "bien bao phu pham vi tac dung cua bien",
     "bien bao phu khoang cach den doi tuong bao hieu",

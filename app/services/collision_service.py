@@ -129,6 +129,36 @@ class CollisionService:
             return "medium", "CANH BAO TRUNG BINH - GIAM TOC"
 
         return "low", "CANH BAO THAP - CO VAT CAN PHIA TRUOC"
+    # def _classify_risk(self, distance_m: Optional[float], ttc_s: Optional[float]) -> Tuple[str, str]:
+    #     """Strict AND logic: both distance and TTC must satisfy the threshold."""
+    #     if distance_m is None:
+    #         return "safe", "AN TOAN - KHONG DU DU LIEU DE DANH GIA"
+
+    #     if (
+    #         distance_m <= self.critical_distance_m
+    #         and ttc_s is not None
+    #         and ttc_s <= self.critical_ttc_s
+    #     ):
+    #         return "critical", "NGUY HIEM KHAN CAP - PHANH NGAY"
+
+    #     if (
+    #         distance_m <= self.high_distance_m
+    #         and ttc_s is not None
+    #         and ttc_s <= self.high_ttc_s
+    #     ):
+    #         return "high", "CANH BAO CAO - VAT CAN DANG RAT GAN"
+
+    #     if (
+    #         distance_m <= self.medium_distance_m
+    #         and ttc_s is not None
+    #         and ttc_s <= self.medium_ttc_s
+    #     ):
+    #         return "medium", "CANH BAO TRUNG BINH - GIAM TOC"
+        
+    #     if distance_m <= self.medium_distance_m:
+    #         return "low", "CANH BAO THAP - CO VAT CAN PHIA TRUOC"
+
+    #     return "safe", "AN TOAN"
 
     def _is_relevant(self, obj: Dict[str, Any]) -> bool:
         """Filter out low-quality detections before risk analysis."""
