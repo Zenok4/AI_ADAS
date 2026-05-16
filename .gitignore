@@ -6,6 +6,7 @@ __pycache__/
 *.pyd
 *.so
 *.log
+logs/
 
 # --- Virtual environment ---
 venv/
@@ -69,6 +70,8 @@ test/result/
 coverage/
 htmlcov/
 .pytest_cache/
+.ultralytics/
+Ultralytics/
 .tox/
 nosetests.xml
 coverage.xml

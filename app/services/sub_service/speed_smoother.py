@@ -1,3 +1,7 @@
+import logging
+logger = logging.getLogger("SpeedSmoother")
+
+
 class SpeedSmoother:
     def __init__(self, alpha=0.6):
         self.alpha = alpha
@@ -10,6 +14,8 @@ class SpeedSmoother:
 
         prev = self.history[obj_id]
         smoothed = self.alpha * speed + (1 - self.alpha) * prev
+
+        logger.debug(f"[SMOOTH {obj_id}] {prev:.2f} -> {smoothed:.2f}")
 
         self.history[obj_id] = smoothed
         return smoothed

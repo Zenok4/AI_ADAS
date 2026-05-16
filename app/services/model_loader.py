@@ -1,4 +1,9 @@
 import os
+
+_yolo_config_dir = os.path.abspath(".ultralytics")
+os.makedirs(_yolo_config_dir, exist_ok=True)
+os.environ.setdefault("YOLO_CONFIG_DIR", _yolo_config_dir)
+
 import torch
 from ultralytics import YOLO
 from app.config.settings import settings

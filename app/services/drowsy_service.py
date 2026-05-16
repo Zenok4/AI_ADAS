@@ -3,6 +3,9 @@ from scipy.spatial import distance as dis
 import cv2
 import math
 import numpy as np
+from debug.visual_logger import VisualLogger
+from debug.event_logger import EventLogger
+import time
 
 # --- Class Dịch vụ Chính (Duy trì cấu trúc an toàn cho luồng) ---
 
@@ -11,6 +14,8 @@ class DrowsinessDetectorService:
     def __init__(self) -> None:
         self.face_mesh = mp.solutions.face_mesh
         self.draw_utils = mp.solutions.drawing_utils
+        self.visual = VisualLogger()
+        self.event_logger = EventLogger()
         
         # Cấu hình MediaPipe (giữ nguyên)
         self.STATIC_IMAGE = False
@@ -112,6 +117,7 @@ class DrowsinessDetectorService:
         Returns:
             tuple: (image, message, angle, new_frame_count)
         """
+        start_time = time.time()
         angle = 0.0 
         new_frame_count = current_frame_count
         message = 'AWAKE'
@@ -146,7 +152,7 @@ class DrowsinessDetectorService:
             if new_frame_count >= self.EYE_AR_CONSEC_FRAMES:
 
                 # Phân loại theo góc quay đầu
-                if angle > 165: 
+                if angle > 175: 
                     message = 'CANH BAO TAI XE DANG NGU GUC SANG PHAI'
                 elif angle < 15: 
                     message = 'CANH BAO TAI XE DANG NGU GUC SANG TRAI'
@@ -164,6 +170,27 @@ class DrowsinessDetectorService:
                     (0, 255, 0) if message == 'AWAKE' else (0, 0, 255), 2, cv2.LINE_AA)
         
         frame_count = new_frame_count
+
+        # 📸 lưu ảnh
+        debug_frame = image.copy()
+        image_path = self.visual.save(debug_frame, "drowsy")
+
+        # ⏱️ latency
+        processing_time = time.time() - start_time
+
+        # 🧾 log (không spam khi AWAKE)
+        if message != 'AWAKE':
+            self.event_logger.log(
+                "drowsy",
+                image_path,
+                {
+                    "state": message,
+                    "ear": avg_ear if "avg_ear" in locals() else 0,
+                    "angle": angle,
+                    "frame_count": frame_count,
+                    "latency_ms": processing_time * 1000
+                }
+            )
 
         # Trả về 4 kết quả
         return image, message, angle, frame_count

@@ -1,4 +1,8 @@
 import math
+import logging
+
+logger = logging.getLogger("TrackingService")
+
 
 class TrackingService:
     def __init__(self):
@@ -9,6 +13,8 @@ class TrackingService:
         return math.sqrt((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2)
 
     def track(self, detections):
+        logger.info(f"[TRACK] detections={len(detections)}")
+
         results = []
         new_objects = {}
 
@@ -26,6 +32,7 @@ class TrackingService:
             if matched_id is None:
                 matched_id = self.next_id
                 self.next_id += 1
+                logger.info(f"[TRACK] new id={matched_id}")
 
             new_objects[matched_id] = center
 
@@ -33,5 +40,4 @@ class TrackingService:
             results.append(det)
 
         self.prev_objects = new_objects
-
         return results

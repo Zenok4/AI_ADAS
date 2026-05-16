@@ -15,6 +15,7 @@ message LaneData {
   float confidence = 2;
   int32 class_id = 3;
   string class_name = 4;
+  repeated float line = 5;
 }
 
 message LaneMeta {
