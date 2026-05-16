@@ -84,7 +84,10 @@ class CollisionService:
     def _estimate_distance_m(self, label: Any, bbox: List[float]) -> Optional[float]:
         """Estimate object distance from bbox width using the pinhole model."""
         box_width_px, box_height_px = self._bbox_dimensions(bbox)
-        if box_width_px < self.min_box_width_px or box_height_px < self.min_box_height_px:
+        if (
+            box_width_px < self.min_box_width_px
+            or box_height_px < self.min_box_height_px
+        ):
             return None
 
         real_width_m = self._estimate_real_width_m(label)
@@ -93,7 +96,9 @@ class CollisionService:
 
         return (real_width_m * self.default_focal_length_px) / max(box_width_px, 1.0)
 
-    def _estimate_ttc_s(self, obj_id: int, current_distance_m: float, now_s: float) -> Optional[float]:
+    def _estimate_ttc_s(
+        self, obj_id: int, current_distance_m: float, now_s: float
+    ) -> Optional[float]:
         """Estimate TTC by comparing current distance with previous distance."""
         prev = self._history.get(obj_id)
         if not prev:
@@ -114,21 +119,61 @@ class CollisionService:
 
         return current_distance_m / closing_speed_mps
 
-    def _classify_risk(self, distance_m: Optional[float], ttc_s: Optional[float]) -> Tuple[str, str]:
-        """Convert distance/TTC into a warning level and message."""
+    # def _classify_risk(
+    #     self, distance_m: Optional[float], ttc_s: Optional[float]
+    # ) -> Tuple[str, str]:
+    #     """Convert distance/TTC into a warning level and message."""
+    #     if distance_m is None:
+    #         return "safe", "AN TOAN - KHONG DU DU LIEU DE DANH GIA"
+
+    #     if distance_m <= self.critical_distance_m or (
+    #         ttc_s is not None and ttc_s <= self.critical_ttc_s
+    #     ):
+    #         return "critical", "NGUY HIEM KHAN CAP - PHANH NGAY"
+
+    #     if distance_m <= self.high_distance_m or (
+    #         ttc_s is not None and ttc_s <= self.high_ttc_s
+    #     ):
+    #         return "high", "CANH BAO CAO - VAT CAN DANG RAT GAN"
+
+    #     if distance_m <= self.medium_distance_m or (
+    #         ttc_s is not None and ttc_s <= self.medium_ttc_s
+    #     ):
+    #         return "medium", "CANH BAO TRUNG BINH - GIAM TOC"
+
+    #     return "low", "CANH BAO THAP - CO VAT CAN PHIA TRUOC"
+    def _classify_risk(
+        self, distance_m: Optional[float], ttc_s: Optional[float]
+    ) -> Tuple[str, str]:
+        """Strict AND logic: both distance and TTC must satisfy the threshold."""
         if distance_m is None:
             return "safe", "AN TOAN - KHONG DU DU LIEU DE DANH GIA"
 
-        if distance_m <= self.critical_distance_m or (ttc_s is not None and ttc_s <= self.critical_ttc_s):
+        if (
+            distance_m <= self.critical_distance_m
+            and ttc_s is not None
+            and ttc_s <= self.critical_ttc_s
+        ):
             return "critical", "NGUY HIEM KHAN CAP - PHANH NGAY"
 
-        if distance_m <= self.high_distance_m or (ttc_s is not None and ttc_s <= self.high_ttc_s):
+        if (
+            distance_m <= self.high_distance_m
+            and ttc_s is not None
+            and ttc_s <= self.high_ttc_s
+        ):
             return "high", "CANH BAO CAO - VAT CAN DANG RAT GAN"
 
-        if distance_m <= self.medium_distance_m or (ttc_s is not None and ttc_s <= self.medium_ttc_s):
+        if (
+            distance_m <= self.medium_distance_m
+            and ttc_s is not None
+            and ttc_s <= self.medium_ttc_s
+        ):
             return "medium", "CANH BAO TRUNG BINH - GIAM TOC"
 
-        return "low", "CANH BAO THAP - CO VAT CAN PHIA TRUOC"
+        if distance_m <= self.medium_distance_m:
+            return "low", "CANH BAO THAP - CO VAT CAN PHIA TRUOC"
+
+        return "safe", "AN TOAN"
 
     def _is_relevant(self, obj: Dict[str, Any]) -> bool:
         """Filter out low-quality detections before risk analysis."""
@@ -138,7 +183,10 @@ class CollisionService:
 
         bbox = obj.get("bbox") or []
         box_width_px, box_height_px = self._bbox_dimensions(bbox)
-        return box_width_px >= self.min_box_width_px and box_height_px >= self.min_box_height_px
+        return (
+            box_width_px >= self.min_box_width_px
+            and box_height_px >= self.min_box_height_px
+        )
 
     def _severity_key(self, level: str) -> int:
         """Translate a risk level to an integer rank."""
@@ -190,7 +238,9 @@ class CollisionService:
 
             level, message = self._classify_risk(distance_m, ttc_s)
 
-            enriched["distance_m"] = round(distance_m, 2) if distance_m is not None else None
+            enriched["distance_m"] = (
+                round(distance_m, 2) if distance_m is not None else None
+            )
             enriched["ttc_s"] = round(ttc_s, 2) if ttc_s is not None else None
             enriched["warning_level"] = level
             enriched["warning_message"] = message
@@ -214,7 +264,11 @@ class CollisionService:
             }
             analyzed_objects.append(enriched)
 
-        current_ids = {int(obj.get("id", -1)) for obj in objects or [] if int(obj.get("id", -1)) >= 0}
+        current_ids = {
+            int(obj.get("id", -1))
+            for obj in objects or []
+            if int(obj.get("id", -1)) >= 0
+        }
         self._cleanup_missing(current_ids)
 
         return {
@@ -233,7 +287,10 @@ class CollisionService:
                 "highest_risk_object": None,
             }
 
-        top_warning = max(warnings, key=lambda item: self._severity_key(item.get("warning_level", "safe")))
+        top_warning = max(
+            warnings,
+            key=lambda item: self._severity_key(item.get("warning_level", "safe")),
+        )
         return {
             "overall_level": top_warning.get("warning_level", "safe"),
             "overall_message": top_warning.get("warning_message", "AN TOAN"),
