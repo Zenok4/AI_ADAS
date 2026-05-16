@@ -8,6 +8,7 @@ from debug.event_logger import EventLogger
 import proto.lane_pb2 as lane_pb2
 import proto.lane_pb2_grpc as lane_pb2_grpc
 
+from app.services.lane_context_service import analyze_current_lane
 from app.services.lane_service import lane_prediction
 
 
@@ -30,6 +31,7 @@ class LaneService(lane_pb2_grpc.LaneServiceServicer):
 
             # predict
             detections = lane_prediction(frame)
+            current_lane = analyze_current_lane(detections, frame.shape)
 
             # 🎨 draw
             debug_frame = self.visual.draw_lane(
@@ -70,9 +72,38 @@ class LaneService(lane_pb2_grpc.LaneServiceServicer):
                 detections=results,
                 meta=lane_pb2.LaneMeta(
                     processing_time=processing_time
-                )
+                ),
+                current_lane=_to_proto_current_lane(current_lane),
             )
 
         except Exception as e:
             print("Lane gRPC Error:", e)
             return lane_pb2.LaneResponse()
+
+
+def _to_proto_current_lane(current_lane):
+    return lane_pb2.CurrentLane(
+        available=current_lane.get("available", False),
+        status=current_lane.get("status", ""),
+        message=current_lane.get("message", ""),
+        reference_y=current_lane.get("reference_y", 0.0),
+        vehicle_center_x=current_lane.get("vehicle_center_x", 0.0),
+        lane_center_x=current_lane.get("lane_center_x", 0.0),
+        lane_width_px=current_lane.get("lane_width_px", 0.0),
+        offset_px=current_lane.get("offset_px", 0.0),
+        offset_ratio=current_lane.get("offset_ratio", 0.0),
+        left_boundary=_to_proto_lane_boundary(current_lane.get("left_boundary")),
+        right_boundary=_to_proto_lane_boundary(current_lane.get("right_boundary")),
+    )
+
+
+def _to_proto_lane_boundary(boundary):
+    if not boundary:
+        return lane_pb2.LaneBoundary()
+
+    return lane_pb2.LaneBoundary(
+        class_name=boundary.get("class_name", ""),
+        line=boundary.get("line", []),
+        confidence=boundary.get("confidence", 0.0),
+        x_at_reference=boundary.get("x_at_reference", 0.0),
+    )

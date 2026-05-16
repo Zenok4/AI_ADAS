@@ -16,25 +16,24 @@ def start_grpc_server():
         futures.ThreadPoolExecutor(max_workers=4)
     )
 
-    #SignService
     sign_pb2_grpc.add_SignServiceServicer_to_server(
         SignService(), server
     )
 
-    #ObjectService
     object_pb2_grpc.add_ObjectServiceServicer_to_server(
         ObjectService(), server
     )
 
-    #LaneService
     lane_pb2_grpc.add_LaneServiceServicer_to_server(
         LaneService(), server
     )
 
-    server.add_insecure_port(settings.GRPC_PORT)
+    bound_port = server.add_insecure_port(settings.GRPC_PORT)
+    if bound_port == 0:
+        raise RuntimeError(f"Could not bind gRPC server to {settings.GRPC_PORT}")
 
     server.start()
 
-    print("🚀 gRPC server running on port " + settings.GRPC_PORT)
+    print("gRPC server running on " + settings.GRPC_PORT)
 
     return server

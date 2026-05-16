@@ -1,6 +1,7 @@
 import time
 import cv2
 import numpy as np
+from threading import Lock
 
 from debug.visual_logger import VisualLogger
 from debug.event_logger import EventLogger
@@ -10,7 +11,17 @@ import proto.sign_pb2 as sign_pb2
 import proto.sign_pb2_grpc as sign_pb2_grpc
 
 
-_combined_service = CombinedSignService(ocr_gpu=True)
+_combined_service = None
+_combined_service_lock = Lock()
+
+
+def get_combined_service():
+    global _combined_service
+    if _combined_service is None:
+        with _combined_service_lock:
+            if _combined_service is None:
+                _combined_service = CombinedSignService(ocr_gpu=True)
+    return _combined_service
 
 
 class SignService(sign_pb2_grpc.SignServiceServicer):
@@ -30,7 +41,7 @@ class SignService(sign_pb2_grpc.SignServiceServicer):
             return sign_pb2.SignResponse()
 
         # predict
-        output = _combined_service.predict(frame)
+        output = get_combined_service().predict(frame)
 
         # 🎨 draw
         debug_frame = self.visual.draw_sign(

@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 import time
 
 from app.services.lane_service import lane_prediction
+from app.services.lane_context_service import analyze_current_lane
 from app.utils.image_helper import decode_base64_image
 
 
@@ -24,12 +25,14 @@ def lane_predict():
 
         method = data.get("method", "opencv")
         detections = lane_prediction(frame, method=method)
+        current_lane = analyze_current_lane(detections, frame.shape)
         print(f"Detected {len(detections)} lane markings")
 
         return jsonify(
             {
                 "data": detections,
                 "detections": detections,
+                "current_lane": current_lane,
                 "processing_time": time.time() - start_time,
             }
         )

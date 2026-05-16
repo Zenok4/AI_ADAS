@@ -15,3 +15,7 @@ def test_grpc_lane_response_includes_line_points():
 
     assert len(response.detections) == 2
     assert all(len(detection.line) == 4 for detection in response.detections)
+    assert response.current_lane.available is True
+    assert response.current_lane.status == "centered"
+    assert response.current_lane.left_boundary.class_name == "left_lane"
+    assert response.current_lane.right_boundary.class_name == "right_lane"
