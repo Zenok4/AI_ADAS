@@ -60,7 +60,8 @@ class LaneService(lane_pb2_grpc.LaneServiceServicer):
                     box=det.get("box", []),
                     confidence=det.get("confidence", 0),
                     class_id=det.get("class_id", 0),
-                    class_name=det.get("class_name", "")
+                    class_name=det.get("class_name", ""),
+                    line=det.get("line", []),
                 )
                 for det in detections
             ]

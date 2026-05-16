@@ -70,6 +70,8 @@ test/result/
 coverage/
 htmlcov/
 .pytest_cache/
+.ultralytics/
+Ultralytics/
 .tox/
 nosetests.xml
 coverage.xml

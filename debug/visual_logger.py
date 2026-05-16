@@ -69,6 +69,13 @@ class VisualLogger:
     # ================= LANE =================
     def draw_lane(self, frame, detections):
         for det in detections:
+            line = det.get("line", [])
+            if len(line) == 4:
+                x1, y1, x2, y2 = map(int, line)
+                color = (0, 255, 255) if det.get("class_name") == "left_lane" else (255, 0, 255)
+                cv2.line(frame, (x1, y1), (x2, y2), color, 8)
+                continue
+
             box = det.get("box", [])
             if len(box) < 4:
                 continue
