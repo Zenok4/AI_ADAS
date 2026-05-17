@@ -4,7 +4,7 @@ import time
 import base64
 import numpy as np
 import cv2
-import uuid # Thêm thư viện để tạo Session ID tạm thời
+import uuid  # Thêm thư viện để tạo Session ID tạm thời
 
 # Giả sử DrowsinessDetectorService đã được import đúng
 from app.services.drowsy_service import DrowsinessDetectorService as DrowsyDetector
@@ -16,7 +16,7 @@ detector = DrowsyDetector()
 
 # Dictionary tạm thời để lưu trạng thái session: {session_id: frame_count}
 # TRONG THỰC TẾ, CẦN DÙNG REDIS HOẶC DATABASE ĐỂ LƯU TRỮ TRẠNG THÁI NÀY
-session_states = {} 
+session_states = {}
 
 
 def _bytes_to_cv2_image(b: bytes):
@@ -54,14 +54,14 @@ def drowsy_predict():
     Input: Cần thêm 'session_id' để theo dõi frame_count liên tục.
     {
       "image_base64": "...",
-      "session_id": "user-abc-123" 
+      "session_id": "user-abc-123"
     }
 
     Output JSON:
         {
           "is_drowsy": bool,
           "message": str,
-          "angle": float, 
+          "angle": float,
           "frame_count": int,
           "latency_ms": int
         }
@@ -69,7 +69,7 @@ def drowsy_predict():
     t0 = time.time()
     img = None
     session_id = None
-    
+
     # --- Xử lý Input & Session ID ---
     body = {}
     if request.is_json:
@@ -85,25 +85,31 @@ def drowsy_predict():
         if file:
             img_bytes = file.read()
             img = _bytes_to_cv2_image(img_bytes)
-        
+
         # Nếu không có session_id từ JSON, tạo session ID tạm thời cho file upload
         if not session_id:
-             session_id = "temp_" + str(uuid.uuid4())
-             
+            session_id = "temp_" + str(uuid.uuid4())
+
     if img is None:
-        return jsonify({"error": "Missing or invalid image (image_base64 or file 'image')"}), 400
+        return (
+            jsonify(
+                {"error": "Missing or invalid image (image_base64 or file 'image')"}
+            ),
+            400,
+        )
 
     if not session_id:
-         return jsonify({"error": "Missing 'session_id' in request body."}), 400
-    
+        return jsonify({"error": "Missing 'session_id' in request body."}), 400
+
     # Lấy frame_count hiện tại từ session
     current_frame_count = session_states.get(session_id, 0)
-
 
     try:
         # GỌI HÀM XỬ LÝ CHÍNH ĐÃ SỬA: process_frame(image, current_frame_count)
         # Hứng đủ 4 giá trị trả về
-        _img_out, message, angle, new_frame_count = detector.process_frame(img, current_frame_count)
+        _img_out, message, angle, new_frame_count = detector.process_frame(
+            img, session_id
+        )
 
         # CẬP NHẬT TRẠNG THÁI MỚI VÀO SESSION
         session_states[session_id] = new_frame_count
@@ -114,7 +120,7 @@ def drowsy_predict():
         resp = {
             "is_drowsy": bool(is_drowsy),
             "message": message,
-            "angle": round(angle, 2), # Thêm angle
+            "angle": round(angle, 2),  # Thêm angle
             "frame_count": int(new_frame_count),
             "session_id": session_id,
             "latency_ms": int((time.time() - t0) * 1000),
@@ -124,4 +130,12 @@ def drowsy_predict():
     except Exception as e:
         # Nếu có lỗi, reset frame_count của session để tránh lỗi liên tục
         session_states[session_id] = 0
-        return jsonify({"error": f"Internal processing error: {str(e)}", "session_id": session_id}), 500
+        return (
+            jsonify(
+                {
+                    "error": f"Internal processing error: {str(e)}",
+                    "session_id": session_id,
+                }
+            ),
+            500,
+        )

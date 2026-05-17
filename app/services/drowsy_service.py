@@ -9,6 +9,7 @@ import time
 
 # --- Class Dịch vụ Chính (Duy trì cấu trúc an toàn cho luồng) ---
 
+
 class DrowsinessDetectorService:
     # ... (Phần __init__ giữ nguyên)
     def __init__(self) -> None:
@@ -16,7 +17,7 @@ class DrowsinessDetectorService:
         self.draw_utils = mp.solutions.drawing_utils
         self.visual = VisualLogger()
         self.event_logger = EventLogger()
-        
+
         # Cấu hình MediaPipe (giữ nguyên)
         self.STATIC_IMAGE = False
         self.MAX_NO_FACES = 2
@@ -25,25 +26,65 @@ class DrowsinessDetectorService:
         self.COLOR_RED = (0, 0, 255)
         self.COLOR_BLUE = (255, 0, 0)
         self.COLOR_GREEN = (0, 255, 0)
-        
+
         # Danh sách các điểm mốc (Giữ nguyên)
-        self.RIGHT_EYE_TOP_BOTTOM = [159, 145] # Vertical points for right eye
+        self.RIGHT_EYE_TOP_BOTTOM = [159, 145]  # Vertical points for right eye
         self.RIGHT_EYE_LEFT_RIGHT = [133, 33]  # Horizontal points for right eye
         self.LEFT_EYE_TOP_BOTTOM = [386, 374]  # Vertical points for left eye
         self.LEFT_EYE_LEFT_RIGHT = [263, 362]  # Horizontal points for left eye
-        self.FACE = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400,
-                     377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109]
+        self.FACE = [
+            10,
+            338,
+            297,
+            332,
+            284,
+            251,
+            389,
+            356,
+            454,
+            323,
+            361,
+            288,
+            397,
+            365,
+            379,
+            378,
+            400,
+            377,
+            152,
+            148,
+            176,
+            149,
+            150,
+            136,
+            172,
+            58,
+            132,
+            93,
+            234,
+            127,
+            162,
+            21,
+            54,
+            103,
+            67,
+            109,
+        ]
 
-        self.face_model = self.face_mesh.FaceMesh(static_image_mode=self.STATIC_IMAGE,
-                                                 max_num_faces=self.MAX_NO_FACES,
-                                                 min_detection_confidence=self.DETECTION_CONFIDENCE,
-                                                 min_tracking_confidence=self.TRACKING_CONFIDENCE)
-        
+        self.face_model = self.face_mesh.FaceMesh(
+            static_image_mode=self.STATIC_IMAGE,
+            max_num_faces=self.MAX_NO_FACES,
+            min_detection_confidence=self.DETECTION_CONFIDENCE,
+            min_tracking_confidence=self.TRACKING_CONFIDENCE,
+        )
+
         # Ngưỡng EAR: Theo bài PyImageSearch, ngưỡng này thường là 0.25 (hoặc 0.3)
-        self.EYE_AR_THRESH = 0.25 
-        
+        self.EYE_AR_THRESH = 0.3
+
         # Ngưỡng frame liên tục: Bài PyImageSearch thường dùng 15-20 frames
-        self.EYE_AR_CONSEC_FRAMES = 18 
+        self.EYE_AR_CONSEC_FRAMES = 3
+        # Lưu frame count theo session
+        self.frame_states = {}
 
     def euclidean_distance(self, image, top, bottom):
         """Tính khoảng cách Euclidean giữa hai điểm mốc."""
@@ -56,21 +97,21 @@ class DrowsinessDetectorService:
     def get_eye_aspect_ratio(self, image, outputs, top_bottom, left_right):
         """Tính Eye Aspect Ratio (EAR) theo công thức chuẩn."""
         landmark = outputs.multi_face_landmarks[0]
-        
+
         # Khoảng cách dọc (Vertical) (Tử số)
         top = landmark.landmark[top_bottom[0]]
         bottom = landmark.landmark[top_bottom[1]]
         vertical_dis = self.euclidean_distance(image, top, bottom)
-        
+
         # Khoảng cách ngang (Horizontal) (Mẫu số)
         left = landmark.landmark[left_right[0]]
         right = landmark.landmark[left_right[1]]
         horizontal_dis = self.euclidean_distance(image, left, right)
-        
+
         # EAR = Vertical / Horizontal
         # Thay vì (Left_Right / Top_Bottom) như code gốc, ta dùng (Top_Bottom / Left_Right)
         ear = vertical_dis / (horizontal_dis + 0.0001)
-        return ear # Trả về EAR (không phải ratio)
+        return ear  # Trả về EAR (không phải ratio)
 
     # ... (Các hàm draw_landmarks, draw_eye_line_and_calculate_angle giữ nguyên)
 
@@ -86,30 +127,43 @@ class DrowsinessDetectorService:
         """Vẽ đường thẳng nối hai mắt và tính góc quay đầu."""
         height, width = image.shape[:2]
         landmark = outputs.multi_face_landmarks[0]
-        
+
         right_eye_left_point = landmark.landmark[self.RIGHT_EYE_LEFT_RIGHT[1]]
         left_eye_right_point = landmark.landmark[self.LEFT_EYE_LEFT_RIGHT[0]]
-        
-        point1 = (int(right_eye_left_point.x * width), int(right_eye_left_point.y * height))
-        point2 = (int(left_eye_right_point.x * width), int(left_eye_right_point.y * height))
-        
+
+        point1 = (
+            int(right_eye_left_point.x * width),
+            int(right_eye_left_point.y * height),
+        )
+        point2 = (
+            int(left_eye_right_point.x * width),
+            int(left_eye_right_point.y * height),
+        )
+
         cv2.line(image, point1, point2, self.COLOR_BLUE, 2)
-        
+
         dx = point2[0] - point1[0]
         dy = point2[1] - point1[1]
-        
-        angle_h = math.degrees(math.atan2(dy, dx))
-        angle = 180 - abs(angle_h) if angle_h > 0 else abs(angle_h) 
-        
-        cv2.putText(image, f'Angle: {round(angle, 2)}', (point1[0], point1[1] - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, self.COLOR_BLUE, 1, cv2.LINE_AA)
-        
+
+        angle = math.degrees(math.atan2(dy, dx))
+
+        cv2.putText(
+            image,
+            f"Angle: {round(angle, 2)}",
+            (point1[0], point1[1] - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            self.COLOR_BLUE,
+            1,
+            cv2.LINE_AA,
+        )
+
         return image, angle
 
-    def process_frame(self, image: np.ndarray, current_frame_count: int = 0):
+    def process_frame(self, image: np.ndarray, session_id: str = "default"):
         """
         Phương thức chính để xử lý khung hình theo thuật toán EAR.
-        
+
         Args:
             image (numpy.ndarray): Khung hình đầu vào (BGR).
             current_frame_count (int): Số frame liên tiếp hiện tại mắt đang đóng.
@@ -118,58 +172,70 @@ class DrowsinessDetectorService:
             tuple: (image, message, angle, new_frame_count)
         """
         start_time = time.time()
-        angle = 0.0 
+        angle = 0.0
+        current_frame_count = self.frame_states.get(session_id, 0)
         new_frame_count = current_frame_count
-        message = 'AWAKE'
+        message = "AWAKE"
 
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         outputs = self.face_model.process(image_rgb)
-        
+
         if outputs.multi_face_landmarks:
             # 1. Vẽ các điểm mốc (Giữ nguyên)
             self.draw_landmarks(image, outputs, self.FACE, self.COLOR_GREEN)
             # ... (vẽ các điểm mắt khác)
 
             # 2. Tính EAR
-            ear_left = self.get_eye_aspect_ratio(image, outputs, self.LEFT_EYE_TOP_BOTTOM, self.LEFT_EYE_LEFT_RIGHT)
-            ear_right = self.get_eye_aspect_ratio(image, outputs, self.RIGHT_EYE_TOP_BOTTOM, self.RIGHT_EYE_LEFT_RIGHT)
+            ear_left = self.get_eye_aspect_ratio(
+                image, outputs, self.LEFT_EYE_TOP_BOTTOM, self.LEFT_EYE_LEFT_RIGHT
+            )
+            ear_right = self.get_eye_aspect_ratio(
+                image, outputs, self.RIGHT_EYE_TOP_BOTTOM, self.RIGHT_EYE_LEFT_RIGHT
+            )
             avg_ear = round((ear_left + ear_right) / 2.0, 2)
 
             # 3. Tính góc quay đầu
             image, angle = self.draw_eye_line_and_calculate_angle(image, outputs)
 
             # 4. Logic phát hiện ngủ gật theo EAR
-            if avg_ear < self.EYE_AR_THRESH: # Nếu EAR thấp hơn ngưỡng (mắt đóng)
+            if avg_ear < self.EYE_AR_THRESH:  # Nếu EAR thấp hơn ngưỡng (mắt đóng)
                 new_frame_count += 1  # Tăng bộ đếm frame
-                message = 'Drowsy detected...' # Tạm thời
+                message = "Drowsy detected..."  # Tạm thời
             else:
                 new_frame_count = 0
-                message = 'AWAKE'
-            
+                message = "AWAKE"
+
             # Cảnh báo dựa trên số frame liên tục
             print("new_frame_count", new_frame_count)
             print("EYE_AR_CONSEC_FRAMES", self.EYE_AR_CONSEC_FRAMES)
             if new_frame_count >= self.EYE_AR_CONSEC_FRAMES:
 
                 # Phân loại theo góc quay đầu
-                if angle > 175: 
-                    message = 'CANH BAO TAI XE DANG NGU GUC SANG PHAI'
-                elif angle < 15: 
-                    message = 'CANH BAO TAI XE DANG NGU GUC SANG TRAI'
-                else: 
-                    message = 'CANH BAO TAI XE DANG NGU GAT'
-                
+                if angle > 10:
+                    message = "CANH BAO TAI XE DANG NGU GUC SANG PHAI"
+                elif angle < -10:
+                    message = "CANH BAO TAI XE DANG NGU GUC SANG TRAI"
+                else:
+                    message = "CANH BAO TAI XE DANG NGU GAT"
+
         else:
-            message = 'FOCUS - KHONG NHAN DIEN DUOC KHUON MAT'
+            message = "FOCUS - KHONG NHAN DIEN DUOC KHUON MAT"
             new_frame_count = 0
             angle = 0.0
 
         # Vẽ trạng thái lên ảnh
-        cv2.putText(image, f'STATE: {message} (EAR: {avg_ear if "avg_ear" in locals() else 0})', 
-                    (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 
-                    (0, 255, 0) if message == 'AWAKE' else (0, 0, 255), 2, cv2.LINE_AA)
-        
-        frame_count = new_frame_count
+        cv2.putText(
+            image,
+            f'STATE: {message} (EAR: {avg_ear if "avg_ear" in locals() else 0})',
+            (50, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 255, 0) if message == "AWAKE" else (0, 0, 255),
+            2,
+            cv2.LINE_AA,
+        )
+
+        self.frame_states[session_id] = new_frame_count
 
         # 📸 lưu ảnh
         debug_frame = image.copy()
@@ -179,7 +245,7 @@ class DrowsinessDetectorService:
         processing_time = time.time() - start_time
 
         # 🧾 log (không spam khi AWAKE)
-        if message != 'AWAKE':
+        if message != "AWAKE":
             self.event_logger.log(
                 "drowsy",
                 image_path,
@@ -187,10 +253,10 @@ class DrowsinessDetectorService:
                     "state": message,
                     "ear": avg_ear if "avg_ear" in locals() else 0,
                     "angle": angle,
-                    "frame_count": frame_count,
-                    "latency_ms": processing_time * 1000
-                }
+                    "frame_count": new_frame_count,
+                    "latency_ms": processing_time * 1000,
+                },
             )
 
         # Trả về 4 kết quả
-        return image, message, angle, frame_count
+        return image, message, angle, new_frame_count
