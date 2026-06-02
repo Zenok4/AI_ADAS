@@ -15,3 +15,14 @@ def test_detect_lane_lines_on_synthetic_road():
     assert sides == {"left_lane", "right_lane"}
     assert all(det["method"] == "opencv_hough" for det in detections)
     assert all(len(det["line"]) == 4 for det in detections)
+
+
+def test_detect_lane_lines_when_road_edges_are_near_frame_sides():
+    frame = np.zeros((480, 800, 3), dtype=np.uint8)
+    cv2.line(frame, (12, 470), (320, 250), (255, 255, 255), 8)
+    cv2.line(frame, (788, 470), (480, 250), (255, 255, 255), 8)
+
+    detections = detect_lane_lines(frame)
+
+    sides = {det["class_name"] for det in detections}
+    assert sides == {"left_lane", "right_lane"}

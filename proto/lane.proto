@@ -41,6 +41,9 @@ message CurrentLane {
   double offset_ratio = 9;
   LaneBoundary left_boundary = 10;
   LaneBoundary right_boundary = 11;
+  bool warning = 12;
+  string warning_direction = 13;
+  string warning_level = 14;
 }
 
 message LaneResponse {

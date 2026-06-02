@@ -8,8 +8,10 @@ from debug.event_logger import EventLogger
 import proto.lane_pb2 as lane_pb2
 import proto.lane_pb2_grpc as lane_pb2_grpc
 
+from app.config.settings import settings
 from app.services.lane_context_service import analyze_current_lane
 from app.services.lane_service import lane_prediction
+from app.state import get_vehicle_state
 
 
 class LaneService(lane_pb2_grpc.LaneServiceServicer):
@@ -31,7 +33,13 @@ class LaneService(lane_pb2_grpc.LaneServiceServicer):
 
             # predict
             detections = lane_prediction(frame)
-            current_lane = analyze_current_lane(detections, frame.shape)
+            vehicle_state = get_vehicle_state()
+            current_lane = analyze_current_lane(
+                detections,
+                frame.shape,
+                drift_threshold=settings.LANE_DEPARTURE["offset_threshold"],
+                vehicle_state=vehicle_state,
+            )
 
             # 🎨 draw
             debug_frame = self.visual.draw_lane(
@@ -94,6 +102,9 @@ def _to_proto_current_lane(current_lane):
         offset_ratio=current_lane.get("offset_ratio", 0.0),
         left_boundary=_to_proto_lane_boundary(current_lane.get("left_boundary")),
         right_boundary=_to_proto_lane_boundary(current_lane.get("right_boundary")),
+        warning=current_lane.get("warning", False),
+        warning_direction=current_lane.get("warning_direction", ""),
+        warning_level=current_lane.get("warning_level", ""),
     )
 
 

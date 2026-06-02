@@ -9,5 +9,6 @@ def run_prediction(model_info, frame):
         max_det=model_info.get("max_det", 100),
         agnostic_nms=model_info.get("agnostic_nms", False),
         half=model_info.get("half", False),
+        device=model_info.get("device", None),
         verbose=False
     )[0]

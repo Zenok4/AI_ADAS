@@ -123,6 +123,38 @@ class FrameStabilizer:
 
 
 # ---------------------------------------------------------------------------
+# Simple 1D Kalman filter for smoothing scalar measurements
+# ---------------------------------------------------------------------------
+
+
+class SimpleKalman1D:
+    """Very small 1D Kalman filter for smoothing lane offset values.
+
+    Maintains estimate x and error covariance P. Call `update(measurement)`
+    to incorporate a new measurement and get the filtered value.
+    """
+
+    def __init__(self, process_var: float = 1e-3, meas_var: float = 1e-2):
+        self.q = float(process_var)
+        self.r = float(meas_var)
+        self.x = 0.0  # initial estimate
+        self.p = 1.0  # initial covariance
+
+    def update(self, measurement: float) -> float:
+        # Predict: x_prior = x, p_prior = p + q
+        p_prior = self.p + self.q
+
+        # Kalman gain
+        k = p_prior / (p_prior + self.r)
+
+        # Update estimate
+        self.x = self.x + k * (measurement - self.x)
+        # Update covariance
+        self.p = (1 - k) * p_prior
+        return float(self.x)
+
+
+# ---------------------------------------------------------------------------
 # Analyzer
 # ---------------------------------------------------------------------------
 
@@ -146,10 +178,19 @@ class LaneDepartureAnalyzer:
         offset_threshold: float = 0.2,
         min_confidence: float = 0.4,
         stable_frames_required: int = 5,
+        yaw_rate_threshold: float = 0.5,
+        steering_angle_threshold: float = 5.0,
+        kalman_process_var: float = 1e-3,
+        kalman_meas_var: float = 1e-2,
     ):
         self.offset_threshold = offset_threshold
         self.min_confidence = min_confidence
         self._stabilizer = FrameStabilizer(required=stable_frames_required)
+        # Kalman filter for smoothing lane offset (1D)
+        self._kalman = SimpleKalman1D(process_var=kalman_process_var, meas_var=kalman_meas_var)
+        # thresholds to detect active turning from vehicle CAN/IMU inputs
+        self.yaw_rate_threshold = float(yaw_rate_threshold)
+        self.steering_angle_threshold = float(steering_angle_threshold)
 
     # ------------------------------------------------------------------
     # Public API
@@ -160,6 +201,7 @@ class LaneDepartureAnalyzer:
         detections: List[Dict[str, Any]],
         frame_width: int,
         frame_height: int,
+        vehicle_state: Optional[Dict[str, float]] = None,
     ) -> LaneDepartureResult:
         """
         Phân tích danh sách detections và trả về LaneDepartureResult.
@@ -217,8 +259,30 @@ class LaneDepartureAnalyzer:
             cx_frame, left_side.inner_x, right_side.inner_x, frame_width
         )
 
-        # 5. Ổn định qua FrameStabilizer
-        stable_status = self._stabilizer.update(raw_status)
+        # 5. Apply Kalman smoothing / prediction using previous state
+        smoothed_offset = self._kalman.update(raw_offset)
+
+        # 6. If vehicle_state indicates active turning, suppress warnings
+        if vehicle_state:
+            yaw = float(vehicle_state.get("yaw_rate", 0.0))
+            steering = float(vehicle_state.get("steering_angle", 0.0))
+            if abs(yaw) >= self.yaw_rate_threshold or abs(steering) >= self.steering_angle_threshold:
+                # treat as normal to avoid false alarms during steering maneuvers
+                stable_status = self._stabilizer.update("normal")
+                return LaneDepartureResult(
+                    status=stable_status,
+                    message="Đang quay/chuyển — tạm hoãn cảnh báo",
+                    lane_offset=round(smoothed_offset, 4),
+                    left_lane=left_side.best,
+                    right_lane=right_side.best,
+                    frame_width=frame_width,
+                    frame_height=frame_height,
+                )
+
+        # 7. Ổn định qua FrameStabilizer dùng smoothed_offset để xét trạng thái
+        # derive status from smoothed_offset
+        smoothed_status = self._status_from_offset(smoothed_offset)
+        stable_status = self._stabilizer.update(smoothed_status)
 
         # Nếu stabilizer hạ cấp cảnh báo → cập nhật message
         if stable_status == "normal" and raw_status != "normal":
@@ -227,12 +291,20 @@ class LaneDepartureAnalyzer:
         return LaneDepartureResult(
             status=stable_status,
             message=message,
-            lane_offset=round(raw_offset, 4),
+            lane_offset=round(smoothed_offset, 4),
             left_lane=left_side.best,
             right_lane=right_side.best,
             frame_width=frame_width,
             frame_height=frame_height,
         )
+
+    def _status_from_offset(self, offset: float) -> str:
+        """Derive simple status from smoothed offset value."""
+        if offset <= -self.offset_threshold:
+            return "warning_left"
+        if offset >= self.offset_threshold:
+            return "warning_right"
+        return "normal"
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -311,10 +383,18 @@ def build_lane_departure_config(raw: Optional[Dict]) -> Dict:
             "offset_threshold": 0.2,
             "min_confidence": 0.4,
             "stable_frames_required": 5,
+            "yaw_rate_threshold": 0.5,
+            "steering_angle_threshold": 5.0,
+            "kalman_process_var": 1e-3,
+            "kalman_meas_var": 1e-2,
         }
     return {
         "enabled": raw.get("enabled", True),
         "offset_threshold": float(raw.get("offset_threshold", 0.2)),
         "min_confidence": float(raw.get("min_confidence", 0.4)),
         "stable_frames_required": int(raw.get("stable_frames_required", 5)),
+        "yaw_rate_threshold": float(raw.get("yaw_rate_threshold", 0.5)),
+        "steering_angle_threshold": float(raw.get("steering_angle_threshold", 5.0)),
+        "kalman_process_var": float(raw.get("kalman_process_var", 1e-3)),
+        "kalman_meas_var": float(raw.get("kalman_meas_var", 1e-2)),
     }

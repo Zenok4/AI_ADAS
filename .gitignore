@@ -94,3 +94,6 @@ datasets/
 train/
 yolov8n.pt
 test/test_ai_sign.py
+
+# --- External pretrained model archives ---
+external/Ultra-Fast-Lane-Detection-v2/

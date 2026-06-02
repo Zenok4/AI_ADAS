@@ -66,8 +66,18 @@ models:
 
   lane:
     path: models/lane/best.pt
+    method: opencv        # opencv | ufldv2 | yolo
     conf: 0.5
     iou: 0.45
+    ufldv2_onnx: external/Ultra-Fast-Lane-Detection-v2/ufldv2_tusimple_res18_320x800.onnx
+    ufldv2_dataset: Tusimple
+    ufldv2_input_width: 800
+    ufldv2_input_height: 320
+    ufldv2_resize_height: 400
+    ufldv2_num_row: 56
+    ufldv2_num_col: 41
+    ufldv2_num_cell_row: 100
+    ufldv2_num_cell_col: 100
 
 collision:
   # Distance thresholds for collision warning

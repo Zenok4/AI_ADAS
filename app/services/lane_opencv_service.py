@@ -47,8 +47,9 @@ def draw_lane_overlay(frame: np.ndarray, detections: Iterable[dict]) -> np.ndarr
 
 def _canny_edges(frame: np.ndarray) -> np.ndarray:
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.equalizeHist(gray)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    return cv2.Canny(blur, 50, 150)
+    return cv2.Canny(blur, 35, 110)
 
 
 def _region_selection(image: np.ndarray) -> np.ndarray:
@@ -58,10 +59,10 @@ def _region_selection(image: np.ndarray) -> np.ndarray:
     vertices = np.array(
         [
             [
-                [cols * 0.10, rows * 0.95],
-                [cols * 0.42, rows * 0.60],
-                [cols * 0.58, rows * 0.60],
-                [cols * 0.90, rows * 0.95],
+                [cols * 0.02, rows * 0.98],
+                [cols * 0.30, rows * 0.45],
+                [cols * 0.70, rows * 0.45],
+                [cols * 0.98, rows * 0.98],
             ]
         ],
         dtype=np.int32,
@@ -77,9 +78,9 @@ def _hough_transform(image: np.ndarray):
         image,
         rho=1,
         theta=np.pi / 180,
-        threshold=20,
-        minLineLength=20,
-        maxLineGap=300,
+        threshold=12,
+        minLineLength=12,
+        maxLineGap=350,
     )
 
 
@@ -120,7 +121,7 @@ def _average_slope_intercept(lines, image_width: int):
     right_lines = []
     right_weights = []
 
-    min_abs_slope = 0.35
+    min_abs_slope = 0.25
     max_abs_slope = 3.0
     center_x = image_width / 2
 
